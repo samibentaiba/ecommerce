@@ -172,17 +172,17 @@ export function TemplateBuilder({ template, onSave, onClose }: TemplateBuilderPr
                     {(provided) => (
                       <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
                         {templateData.sections.map((section, index) => (
-                          <Draggable key={section.id} draggableId={section.id} index={index}>
+                          <Draggable key={section.id} draggableId={section.id} index={index} className="relative left-50 right-0">
                             {(provided) => (
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className="border rounded-lg p-4 bg-white shadow-sm"
+                                className=" border rounded-lg p-4 bg-white shadow-sm"
                               >
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <h4 className="font-medium">{section.title}</h4>
+                                    <h4 className="font-medium text-muted-foreground ">{section.title}</h4>
                                     <p className="text-sm text-muted-foreground capitalize">{section.type} Section</p>
                                   </div>
                                   <div className="flex space-x-2">
