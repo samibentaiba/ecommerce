@@ -1,0 +1,4 @@
+id,customerName,customerEmail,products,total,status,orderDate,shippingAddress
+ORD-001,John Doe,john@example.com,"Premium Wireless Headphones (x1 @ $299.99)",299.99,pending,2024-01-15,"123 Main St, City, State 12345"
+ORD-002,Jane Smith,jane@example.com,"Smart Fitness Watch (x2 @ $199.99); Eco-Friendly Water Bottle (x1 @ $29.99)",429.97,processing,2024-01-14,"456 Oak Ave, Town, State 67890"
+ORD-003,Bob Johnson,bob@example.com,"Eco-Friendly Water Bottle (x3 @ $29.99)",89.97,shipped,2024-01-13,"789 Pine Rd, Village, State 13579"

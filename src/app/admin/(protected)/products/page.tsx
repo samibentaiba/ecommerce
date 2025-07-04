@@ -438,7 +438,7 @@ export default function ProductsPage() {
                                 <Input
                                   value={variant.value}
                                   onChange={(e) => updateVariant(variant.id, { value: e.target.value })}
-                                  placeholder={variant.type === "color" ? "#FF0000" : "XL"}
+                                  placeholder={variant.type === "color" ? "#FF0000" : variant.type === "size" ? "XL" : "Feature"}
                                 />
                               </div>
                               <div className="grid gap-2">
