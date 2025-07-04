@@ -94,13 +94,20 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string,
+    description: string,
+    price: string,
+    category: string,
+    stock: string,
+    status: "active" | "inactive",
+  }>({
     name: "",
     description: "",
     price: "",
     category: "",
     stock: "",
-    status: "active" as const,
+    status: "active",
   })
 
   const [productImages, setProductImages] = useState<ProductImage[]>([])
@@ -315,7 +322,7 @@ export default function ProductsPage() {
                     </Button>
                   </div>
                   <div className="grid gap-4">
-                    {productImages.map((image, index) => (
+                    {productImages.map((image) => (
                       <Card key={image.id}>
                         <CardContent className="p-4">
                           <div className="flex items-start space-x-4">
@@ -372,7 +379,7 @@ export default function ProductsPage() {
                     {productImages.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <p>No images added yet</p>
-                        <p className="text-sm">Click "Add Image" to get started</p>
+                        <p className="text-sm">Click &quot;Add Image&quot; to get started</p>
                       </div>
                     )}
                   </div>
@@ -461,7 +468,7 @@ export default function ProductsPage() {
                     {productVariants.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <p>No variants added yet</p>
-                        <p className="text-sm">Click "Add Variant" to create color, size, or feature options</p>
+                        <p className="text-sm">Click &quot;Add Variant&quot; to create color, size, or feature options</p>
                       </div>
                     )}
                   </div>

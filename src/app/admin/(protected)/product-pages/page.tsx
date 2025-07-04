@@ -86,13 +86,20 @@ export default function ProductPagesPage() {
   const [editingPage, setEditingPage] = useState<ProductPage | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string
+    productId: string
+    metaTitle: string
+    metaDescription: string
+    content: string
+    status: "published" | "draft"
+  }>({
     title: "",
     productId: "",
     metaTitle: "",
     metaDescription: "",
     content: "",
-    status: "draft" as const,
+    status: "draft",
   })
 
   const products = [
@@ -111,12 +118,12 @@ export default function ProductPagesPage() {
         productPages.map((page) =>
           page.id === editingPage.id
             ? {
-                ...editingPage,
-                ...formData,
-                productId: Number.parseInt(formData.productId),
-                productName: selectedProduct?.name || "",
-                lastModified: new Date().toISOString().split("T")[0],
-              }
+              ...editingPage,
+              ...formData,
+              productId: Number.parseInt(formData.productId),
+              productName: selectedProduct?.name || "",
+              lastModified: new Date().toISOString().split("T")[0],
+            }
             : page,
         ),
       )

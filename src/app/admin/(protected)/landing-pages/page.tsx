@@ -68,15 +68,25 @@ export default function LandingPagesPage() {
   const [editingPage, setEditingPage] = useState<LandingPage | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<LandingPageTemplate | null>(null)
 
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState<{
+    title: string
+    slug: string
+    productId: string
+    headline: string
+    description: string
+    status: "draft" | "published"
+    templateId: string
+  }>({
     title: "",
     slug: "",
     productId: "",
     headline: "",
     description: "",
-    status: "draft" as const,
+    status: "draft",
     templateId: "",
   })
+
 
   const products = [
     { id: 1, name: "Premium Wireless Headphones" },
@@ -101,12 +111,12 @@ export default function LandingPagesPage() {
         landingPages.map((page) =>
           page.id === editingPage.id
             ? {
-                ...editingPage,
-                ...formData,
-                productId: Number.parseInt(formData.productId),
-                productName: selectedProduct?.name || "",
-                templateId: formData.templateId ? Number.parseInt(formData.templateId) : undefined,
-              }
+              ...editingPage,
+              ...formData,
+              productId: Number.parseInt(formData.productId),
+              productName: selectedProduct?.name || "",
+              templateId: formData.templateId ? Number.parseInt(formData.templateId) : undefined,
+            }
             : page,
         ),
       )
