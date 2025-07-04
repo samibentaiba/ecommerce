@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +10,37 @@ import { useLanguage } from "@/components/providers/language-provider"
 export default function AdminDashboard() {
   const { t } = useLanguage()
 
+  const metrics = [
+    {
+      icon: DollarSign,
+      titleKey: "admin.totalRevenue",
+      value: "$45,231.89",
+      change: "+20.1%",
+      subtitleKey: "admin.fromLastMonth",
+    },
+    {
+      icon: ShoppingCart,
+      titleKey: "admin.totalOrders",
+      value: "+2350",
+      change: "+180.1%",
+      subtitleKey: "admin.fromLastMonth",
+    },
+    {
+      icon: Package,
+      titleKey: "admin.totalProducts",
+      value: "+12,234",
+      change: "+19%",
+      subtitleKey: "admin.fromLastMonth",
+    },
+    {
+      icon: Users,
+      titleKey: "admin.activeCustomers",
+      value: "+573",
+      change: "+201",
+      subtitleKey: "admin.sinceLastHour",
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,49 +49,23 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("admin.totalRevenue")}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
-            <p className="text-xs text-muted-foreground">+20.1% {t("admin.fromLastMonth")}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("admin.totalOrders")}</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+2350</div>
-            <p className="text-xs text-muted-foreground">+180.1% {t("admin.fromLastMonth")}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("admin.totalProducts")}</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+12,234</div>
-            <p className="text-xs text-muted-foreground">+19% {t("admin.fromLastMonth")}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("admin.activeCustomers")}</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+573</div>
-            <p className="text-xs text-muted-foreground">+201 {t("admin.sinceLastHour")}</p>
-          </CardContent>
-        </Card>
+        {metrics.map((metric, idx) => {
+          const Icon = metric.icon
+          return (
+            <Card key={idx}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t(metric.titleKey)}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metric.value}</div>
+                <p className="text-xs text-muted-foreground">
+                  {metric.change} {t(metric.subtitleKey)}
+                </p>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -84,3 +90,4 @@ export default function AdminDashboard() {
     </div>
   )
 }
+

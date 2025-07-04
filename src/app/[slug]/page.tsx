@@ -203,7 +203,7 @@ export default function LandingPage({ params }: { params: { slug: string } }) {
               />
             </div>
             <div>
-              <ul className="space-y-4">
+              <ul className="space-y-4 text-background">
                 {page.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <Check className="h-6 w-6 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
