@@ -29,7 +29,7 @@ export default function AdminLayout({
     { name: t("admin.dashboard"), href: "/admin", icon: LayoutDashboard },
     { name: t("admin.products"), href: "/admin/products", icon: Package },
     { name: t("admin.orders"), href: "/admin/orders", icon: ShoppingCart },
-    { name: t("nav.landingPages"), href: "/admin/landing-pages", icon: FileText },
+    { name: t("admin.landingPages"), href: "/admin/landing-pages", icon: FileText },
     { name: t("admin.templates"), href: "/admin/templates", icon: Template },
     { name: t("admin.settings"), href: "/admin/settings", icon: Settings },
   ]

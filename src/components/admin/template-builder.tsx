@@ -1,11 +1,14 @@
+
+
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+import { useState, useEffect } from "react"
+import { Plus, Eye, Settings, Edit, Trash2, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -13,10 +16,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Plus, Trash2, Settings, Eye } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import Image from "next/image"
+import SectionModal from "./SectionModal"
 import type { LandingPageTemplate, TemplateSection } from "@/lib/types"
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
+
+type SectionType = "hero" | "features" | "testimonials" | "cta" | "text" | "image" | "gallery"
+
+interface Section {
+  id: string
+  name: string
+  type: SectionType
+  description: string
+}
 
 interface TemplateBuilderProps {
   template?: LandingPageTemplate | null
@@ -24,297 +39,294 @@ interface TemplateBuilderProps {
   onClose: () => void
 }
 
-export function TemplateBuilder({ template, onSave, onClose }: TemplateBuilderProps) {
-  const [templateData, setTemplateData] = useState<LandingPageTemplate>(
-    template || {
-      id: 0,
-      name: "",
-      description: "",
-      thumbnail: "/placeholder.svg?height=200&width=300",
-      isDefault: false,
-      createdAt: new Date().toISOString().split("T")[0],
-      sections: [],
-    },
-  )
+const validTypes: SectionType[] = ["hero", "features", "testimonials", "cta", "text", "image", "gallery"]
 
+const isValidType = (value: string): value is SectionType => {
+  return validTypes.includes(value as SectionType)
+}
+
+export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ template, onSave, onClose }) => {
+  const [templateName, setTemplateName] = useState("")
+  const [description, setDescription] = useState("")
+  const [sections, setSections] = useState<Section[]>([])
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false)
-  const [editingSection, setEditingSection] = useState<TemplateSection | null>(null)
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [draggedItem, setDraggedItem] = useState<string | null>(null)
 
-  const sectionTypes = [
-    { value: "hero", label: "Hero Section", description: "Main banner with headline and CTA" },
-    { value: "features", label: "Features", description: "Product features grid" },
-    { value: "testimonials", label: "Testimonials", description: "Customer reviews and ratings" },
-    { value: "cta", label: "Call to Action", description: "Action button section" },
-    { value: "text", label: "Text Block", description: "Rich text content" },
-    { value: "image", label: "Image", description: "Single image with caption" },
-    { value: "gallery", label: "Gallery", description: "Multiple images grid" },
-  ]
+  useEffect(() => {
+    if (template) {
+      setTemplateName(template.name || "")
+      setDescription(template.description || "")
+      setSections(
+        template.sections.map(
+          (s: TemplateSection, index: number): Section => ({
+            id: s.id || `section-${index}`,
+            name: s.title || `Section ${index + 1}`,
+            type: isValidType(s.type) ? s.type : "text",
+            description: s.content || "",
+          }),
+        ),
+      )
+    }
+  }, [template])
 
-  const handleAddSection = (type: string) => {
-    const newSection: TemplateSection = {
-      id: `section-${Date.now()}`,
-      type: type as TemplateSection["type"],
-      title: `New ${type} Section`,
-      content: "",
-      settings: {},
-      order: templateData.sections.length + 1,
+  const handleDragStart = (e: React.DragEvent, sectionId: string) => {
+    setDraggedItem(sectionId)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/html", sectionId)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedItem || draggedItem === targetId) {
+      setDraggedItem(null)
+      return
     }
 
-    setTemplateData({
-      ...templateData,
-      sections: [...templateData.sections, newSection],
-    })
+    const draggedIndex = sections.findIndex((s) => s.id === draggedItem)
+    const targetIndex = sections.findIndex((s) => s.id === targetId)
+
+    if (draggedIndex === -1 || targetIndex === -1) return
+
+    const newSections = [...sections]
+    const [draggedSection] = newSections.splice(draggedIndex, 1)
+    newSections.splice(targetIndex, 0, draggedSection)
+
+    setSections(newSections)
+    setDraggedItem(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedItem(null)
+  }
+
+  const addSection = (sectionType: string, sectionName: string, sectionDescription: string) => {
+    const validTypes: SectionType[] = ["hero", "features", "testimonials", "cta", "text", "image", "gallery"]
+    const fallbackType: SectionType = "text"
+
+    const type: SectionType = validTypes.includes(sectionType as SectionType)
+      ? (sectionType as SectionType)
+      : fallbackType
+
+    const newSection: Section = {
+      id: Date.now().toString(),
+      name: sectionName,
+      type,
+      description: sectionDescription,
+    }
+
+    setSections([...sections, newSection])
     setIsAddSectionOpen(false)
   }
 
-  const handleEditSection = (section: TemplateSection) => {
-    setEditingSection(section)
+  const removeSection = (sectionId: string) => {
+    setSections(sections.filter((s) => s.id !== sectionId))
   }
 
-  const handleUpdateSection = (updatedSection: TemplateSection) => {
-    setTemplateData({
-      ...templateData,
-      sections: templateData.sections.map((section) => (section.id === updatedSection.id ? updatedSection : section)),
-    })
-    setEditingSection(null)
-  }
-
-  const handleDeleteSection = (sectionId: string) => {
-    setTemplateData({
-      ...templateData,
-      sections: templateData.sections.filter((section) => section.id !== sectionId),
-    })
-  }
-
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return
-
-    const items = Array.from(templateData.sections)
-    const [reorderedItem] = items.splice(result.source.index, 1)
-    items.splice(result.destination.index, 0, reorderedItem)
-
-    // Update order numbers
-    const updatedSections = items.map((section, index) => ({
+  const duplicateSection = (section: Section) => {
+    const duplicatedSection: Section = {
       ...section,
-      order: index + 1,
-    }))
-
-    setTemplateData({
-      ...templateData,
-      sections: updatedSections,
-    })
-  }
-
-  const handleSave = () => {
-    if (!templateData.name.trim()) {
-      alert("Please enter a template name")
-      return
+      id: Date.now().toString(),
+      name: `${section.name} (Copy)`,
     }
-    onSave(templateData)
+    setSections([...sections, duplicatedSection])
   }
-
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{template ? "Edit Template" : "Build New Template"}</DialogTitle>
-          <DialogDescription>Create sections and customize your landing page template</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Template Settings */}
-          <div className="lg:col-span-1 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Template Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="template-name">Template Name</Label>
-                  <Input
-                    id="template-name"
-                    value={templateData.name}
-                    onChange={(e) => setTemplateData({ ...templateData, name: e.target.value })}
-                    placeholder="Enter template name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="template-description">Description</Label>
-                  <Textarea
-                    id="template-description"
-                    value={templateData.description}
-                    onChange={(e) => setTemplateData({ ...templateData, description: e.target.value })}
-                    placeholder="Describe this template"
-                  />
-                </div>
-                <Button onClick={() => setIsAddSectionOpen(true)} className="w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Section
-                </Button>
-                <Button variant="outline" onClick={() => setIsPreviewOpen(true)} className="w-full">
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview Template
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sections Builder */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Template Sections ({templateData.sections.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Droppable droppableId="sections">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
-                        {templateData.sections.map((section, index) => (
-                          <Draggable key={section.id} draggableId={section.id} index={index} className="relative left-50 right-0">
-                            {(provided) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className=" border rounded-lg p-4 bg-white shadow-sm"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <h4 className="font-medium text-muted-foreground ">{section.title}</h4>
-                                    <p className="text-sm text-muted-foreground capitalize">{section.type} Section</p>
-                                  </div>
-                                  <div className="flex space-x-2">
-                                    <Button variant="ghost" size="sm" onClick={() => handleEditSection(section)}>
-                                      <Settings className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSection(section.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
-
-                {templateData.sections.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>No sections added yet</p>
-                    <p className="text-sm">Click "Add Section" to get started</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save Template</Button>
-        </DialogFooter>
-
-        {/* Add Section Dialog */}
-        <Dialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Section</DialogTitle>
-              <DialogDescription>Choose a section type to add to your template</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3">
-              {sectionTypes.map((type) => (
-                <Card
-                  key={type.value}
-                  className="cursor-pointer hover:bg-accent transition-colors"
-                  onClick={() => handleAddSection(type.value)}
-                >
-                  <CardContent className="p-4">
-                    <h4 className="font-medium">{type.label}</h4>
-                    <p className="text-sm text-muted-foreground">{type.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Section Dialog */}
-        {editingSection && (
-          <SectionEditor
-            section={editingSection}
-            onSave={handleUpdateSection}
-            onClose={() => setEditingSection(null)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-// Section Editor Component
-function SectionEditor({
-  section,
-  onSave,
-  onClose,
-}: {
-  section: TemplateSection
-  onSave: (section: TemplateSection) => void
-  onClose: () => void
-}) {
-  const [sectionData, setSectionData] = useState(section)
 
   const handleSave = () => {
-    onSave(sectionData)
+    const newTemplate: LandingPageTemplate = {
+      ...template,
+      id: template?.id || Date.now(),
+      name: templateName,
+      description,
+      thumbnail: template?.thumbnail || "/placeholder.svg",
+      isDefault: template?.isDefault || false,
+      createdAt: template?.createdAt || new Date().toISOString().split("T")[0],
+      sections: sections.map(
+        (s: Section, i: number): TemplateSection => ({
+          id: s.id,
+          title: s.name,
+          type: s.type,
+          content: s.description,
+          order: i + 1,
+          settings: {},
+        }),
+      ),
+    }
+
+    onSave(newTemplate)
+  }
+
+  const handleSettingsSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSettingsOpen(false)
   }
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit {section.type} Section</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Section Title</Label>
-            <Input
-              value={sectionData.title}
-              onChange={(e) => setSectionData({ ...sectionData, title: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Content</Label>
-            <Textarea
-              value={sectionData.content || ""}
-              onChange={(e) => setSectionData({ ...sectionData, content: e.target.value })}
-              rows={4}
-            />
-          </div>
-          {section.type === "image" && (
-            <div>
-              <Label>Image URL</Label>
-              <Input
-                value={sectionData.image || ""}
-                onChange={(e) => setSectionData({ ...sectionData, image: e.target.value })}
-                placeholder="/placeholder.svg?height=400&width=800"
-              />
-            </div>
-          )}
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Template Builder</h2>
+          <p className="text-muted-foreground">Create and customize your landing page template</p>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="flex space-x-2">
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Settings className="mr-2 h-4 w-4" />
+                Template Settings
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Template Settings</DialogTitle>
+                <DialogDescription>Configure your template name and description</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSettingsSubmit}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="templateName">Template Name</Label>
+                    <Input
+                      id="templateName"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="templateDescription">Description</Label>
+                    <Textarea
+                      id="templateDescription"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit">Save Settings</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Section
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <SectionModal onAddSection={addSection} />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {templateName && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              {templateName}
+              <Badge variant="secondary">Draft</Badge>
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>{sections.length} sections</span>
+              <span>Created {new Date().toLocaleDateString()}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {sections.map((section, index) => (
+          <Card
+            key={section.id}
+            className={`overflow-hidden cursor-move transition-all duration-200 ${draggedItem === section.id ? "opacity-50 scale-95" : "hover:shadow-md"
+              }`}
+            draggable
+            onDragStart={(e) => handleDragStart(e, section.id)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, section.id)}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="relative">
+              <Image
+                src="/placeholder.svg"
+                alt={section.name}
+                width={300}
+                height={200}
+                className="w-full h-48 object-cover bg-gradient-to-br from-blue-50 to-indigo-100"
+              />
+              <Badge className="absolute top-2 right-2" variant="outline">
+                {section.type}
+              </Badge>
+            </div>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                {section.name}
+                <div className="flex space-x-1">
+                  <Button variant="ghost" size="sm">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => duplicateSection(section)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => removeSection(section.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardTitle>
+              <CardDescription>{section.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Order: {index + 1}</span>
+                <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">Drag to reorder</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {sections.length === 0 && (
+          <Card className="col-span-full">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <Plus className="w-8 h-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-600 mb-2">No sections added yet</h3>
+              <p className="text-sm text-slate-500 text-center mb-4">
+                Click "Add Section" to get started building your template
+              </p>
+              <Button onClick={() => setIsAddSectionOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Section
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-4 pt-6 border-t">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={!templateName || sections.length === 0}>
+          Save Template
+        </Button>
+      </div>
+    </div>
   )
 }
+
