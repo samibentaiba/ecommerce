@@ -43,7 +43,7 @@ enum LandingPageStatus {
   DRAFT
 }
 
-enum TemplateSectionType {
+enum LandingPageSectionType {
   HERO
   FEATURES
   TESTIMONIALS
@@ -62,9 +62,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders   Order[]
-  cart     Cart?
-  wishlist Wishlist[]
+  orders    Order[]
+  cart      Cart?
+  wishlists Wishlist[]
 }
 
 model Product {
@@ -80,12 +80,12 @@ model Product {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  images        ProductImage[]
-  variants      ProductVariant[]
-  landingPages  LandingPage[]
-  orderItems    OrderItem[]
-  wishlistItems Wishlist[]
-  CartItem      CartItem[]
+  images       ProductImage[]
+  variants     ProductVariant[]
+  landingPages LandingPage[]
+  orderItems   OrderItem[]
+  wishlists    Wishlist[]
+  cartItems    CartItem[]
 }
 
 model ProductImage {
@@ -153,15 +153,15 @@ model LandingPageTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  sections TemplateSection[]
+  sections LandingPageTemplateSection[]
   pages    LandingPage[]
 }
 
-model TemplateSection {
-  id         String              @id @default(cuid())
-  template   LandingPageTemplate @relation(fields: [templateId], references: [id])
+model LandingPageTemplateSection {
+  id         String                 @id @default(cuid())
+  template   LandingPageTemplate    @relation(fields: [templateId], references: [id])
   templateId String
-  type       TemplateSectionType
+  type       LandingPageSectionType
   title      String?
   content    String?
   image      String?
@@ -189,10 +189,10 @@ model LandingPage {
 }
 
 model LandingPageSection {
-  id            String              @id @default(cuid())
-  landingPage   LandingPage         @relation(fields: [landingPageId], references: [id])
+  id            String                 @id @default(cuid())
+  landingPage   LandingPage            @relation(fields: [landingPageId], references: [id])
   landingPageId String
-  type          TemplateSectionType
+  type          LandingPageSectionType
   title         String?
   content       String?
   image         String?
@@ -228,4 +228,10 @@ model Wishlist {
   product   Product  @relation(fields: [productId], references: [id])
   productId String
   createdAt DateTime @default(now())
+}
+
+model AppSettings {
+  id        String   @id @default("singleton")
+  payload   Json
+  updatedAt DateTime @updatedAt
 }
