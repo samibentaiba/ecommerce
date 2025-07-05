@@ -1,0 +1,2 @@
+id,customerName,customerEmail,products,total,status,orderDate,shippingAddress
+ORD-001,John Doe,john@example.com,"Premium Wireless Headphones (x1 @ $299.99)",299.99,PENDING,2024-01-15,"123 Main St, City, State 12345"
