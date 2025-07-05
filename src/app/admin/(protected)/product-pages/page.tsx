@@ -104,8 +104,6 @@ export default function ProductPagesPage() {
 
   const products = [
     { id: 1, name: "Premium Wireless Headphones" },
-    { id: 2, name: "Smart Fitness Watch" },
-    { id: 3, name: "Eco-Friendly Water Bottle" },
   ]
 
   const handleSubmit = (e: React.FormEvent) => {

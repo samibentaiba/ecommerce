@@ -15,6 +15,7 @@ import {
   Settings,
   LayoutTemplateIcon as Template,
 } from "lucide-react"
+import { PanelsTopLeft } from 'lucide-react';
 import { useLanguage } from "@/components/providers/language-provider"
 
 export default function AdminLayout({
@@ -27,6 +28,7 @@ export default function AdminLayout({
 
   const navigation = [
     { name: t("admin.dashboard"), href: "/admin", icon: LayoutDashboard },
+    { name: t("admin.productPages"), href: "/admin/product-pages", icon: PanelsTopLeft },
     { name: t("admin.products"), href: "/admin/products", icon: Package },
     { name: t("admin.orders"), href: "/admin/orders", icon: ShoppingCart },
     { name: t("admin.landingPages"), href: "/admin/landing-pages", icon: FileText },

@@ -127,6 +127,7 @@ const translations = {
     "admin.editProduct": "Edit Product",
     "admin.deleteProduct": "Delete Product",
     "admin.productName": "Product Name",
+    "admin.productPages": "Product Pages",
     "admin.productDescription": "Product Description",
     "admin.productPrice": "Product Price",
     "admin.productCategory": "Product Category",
@@ -158,7 +159,6 @@ const translations = {
     "admin.basicInfo": "Basic Info",
     "admin.images": "Images",
     "admin.preview": "Preview",
-    "admin.productImages": "Product Images",
     "admin.addImage": "Add Image",
     "admin.imageUrl": "Image URL",
     "admin.altText": "Alt Text",
@@ -194,7 +194,6 @@ const translations = {
     "admin.customerInfo": "Customer Information",
     "admin.orderDate": "Order Date",
     "admin.shippingAddress": "Shipping Address",
-    "admin.products": "Products",
 
     // Admin Templates
     "admin.landingPageTemplates": "Landing Page Templates",
@@ -495,6 +494,7 @@ const translations = {
     "admin.settings": "الإعدادات",
     "admin.overview": "نظرة عامة",
     "admin.analytics": "التحليلات",
+    "admin.productPages": "صفحات المنتجات",
     "admin.customers": "العملاء",
     "admin.addProduct": "إضافة منتج",
     "admin.editProduct": "تعديل منتج",
@@ -531,7 +531,6 @@ const translations = {
     "admin.basicInfo": "المعلومات الأساسية",
     "admin.images": "الصور",
     "admin.preview": "معاينة",
-    "admin.productImages": "صور المنتج",
     "admin.addImage": "إضافة صورة",
     "admin.imageUrl": "رابط الصورة",
     "admin.altText": "النص البديل",
@@ -567,7 +566,6 @@ const translations = {
     "admin.customerInfo": "معلومات العميل",
     "admin.orderDate": "تاريخ الطلب",
     "admin.shippingAddress": "عنوان الشحن",
-    "admin.products": "المنتجات",
 
     // Admin Templates
     "admin.landingPageTemplates": "قوالب الصفحة المقصودة",
@@ -867,6 +865,7 @@ const translations = {
     "admin.settings": "Paramètres",
     "admin.overview": "Aperçu",
     "admin.analytics": "Analyses",
+    "admin.productPages": "Pages produits",
     "admin.customers": "Clients",
     "admin.addProduct": "Ajouter un produit",
     "admin.editProduct": "Modifier le produit",
@@ -903,7 +902,6 @@ const translations = {
     "admin.basicInfo": "Informations de base",
     "admin.images": "Images",
     "admin.preview": "Aperçu",
-    "admin.productImages": "Images du produit",
     "admin.addImage": "Ajouter une image",
     "admin.imageUrl": "URL de l'image",
     "admin.altText": "Texte alternatif",
@@ -940,7 +938,6 @@ const translations = {
     "admin.customerInfo": "Informations sur le client",
     "admin.orderDate": "Date de la commande",
     "admin.shippingAddress": "Adresse de livraison",
-    "admin.products": "Produits",
 
     // Admin Templates
     "admin.landingPageTemplates": "Modèles de pages de destination",
