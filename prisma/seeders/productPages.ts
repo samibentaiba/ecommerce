@@ -1,24 +1,52 @@
-import { PrismaClient } from "@prisma/client";
+// /home/sami/Documents/GitHub/ecommerce/prisma/seeders/productPages.ts
 
-export default async function seedProductPages(prisma: PrismaClient) {
-  const product = await prisma.product.findFirst();
+import prisma from '&/prisma'
+import { ProductPageStatus } from '@prisma/client'
+import { loadCSV, safeCreate } from '../utils/handler'
 
-  if (!product) return;
-
-  await prisma.productPage.create({
-    data: {
-      title: "Premium Wireless Headphones - Product Page",
-      slug: "premium-wireless-headphones",
-      productId: product.id,
-      metaTitle: "Premium Wireless Headphones | Best Audio Experience",
-      metaDescription:
-        "Experience exceptional sound quality with our premium wireless headphones featuring advanced noise cancellation.",
-      content:
-        "Detailed product description with specifications, features, and benefits...",
-      featuredImage: "/placeholder.svg?height=200&width=300",
-      status: "PUBLISHED",
-      seoScore: 85,
-      lastModified: new Date("2024-01-15"),
-    },
-  });
+type ProductPageRow = {
+  title: string
+  slug: string
+  productName: string
+  metaTitle: string
+  metaDescription: string
+  content: string
+  featuredImage: string
+  status: string
+  seoScore: string
+  lastModified: string
 }
+
+export default async function seedProductPages() {
+  const rows = await loadCSV<ProductPageRow>('product_pages.csv')
+
+  for (const row of rows) {
+    const product = await prisma.product.findFirst({
+      where: { name: row.productName },
+    })
+
+    if (!product) {
+      console.warn(`⚠️ Product not found for product page: ${row.productName}`)
+      continue
+    }
+
+    await safeCreate(`productPage "${row.title}"`, async () =>
+      prisma.productPage.create({
+        data: {
+          title: row.title,
+          slug: row.slug,
+          productId: product.id,
+          metaTitle: row.metaTitle,
+          metaDescription: row.metaDescription,
+          content: row.content,
+          featuredImage: row.featuredImage,
+          status: row.status.toUpperCase() as ProductPageStatus,
+          seoScore: parseInt(row.seoScore, 10),
+          lastModified: new Date(row.lastModified),
+        },
+      }),
+      row
+    )
+  }
+}
+

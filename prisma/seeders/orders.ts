@@ -1,33 +1,73 @@
+// /home/sami/Documents/GitHub/ecommerce/prisma/seeders/orders.ts
 
+import prisma from '&/prisma'
+import { loadCSV, safeCreate } from '../utils/handler'
+import { OrderStatus } from '@prisma/client'
 
-import { PrismaClient } from "@prisma/client";
+type OrderRow = {
+  id: string
+  customerName: string
+  customerEmail: string
+  products: string // Example: "Premium Wireless Headphones (x1 @ $299.99)"
+  total: string
+  status: string
+  orderDate: string
+  shippingAddress: string
+}
 
-export default async function seedOrders(prisma: PrismaClient) {
-  const user = await prisma.user.findFirst({ where: { role: "CUSTOMER" } });
-  const product = await prisma.product.findFirst();
+export default async function seedOrders() {
+  const rows = await loadCSV<OrderRow>('orders.csv')
 
-  if (!user || !product) return;
+  const user = await prisma.user.findFirst()
+  if (!user) {
+    console.error('❌ No user found to associate orders.')
+    return
+  }
 
-  await prisma.order.create({
-    data: {
-      userId: user.id,
-      customerName: user.name,
-      customerEmail: user.email,
-      shippingAddress: "123 Main St, City, State 12345",
-      total: 299.99,
-      status: "PENDING",
-      orderDate: new Date("2024-01-15"),
-      items: {
-        create: [
-          {
-            productId: product.id,
-            productName: product.name,
-            quantity: 1,
-            price: 299.99,
+  for (const row of rows) {
+    // Extract product info
+    const match = row.products.match(/^(.+?) \(x(\d+) @ \$([\d.]+)\)$/)
+    if (!match) {
+      console.warn(`⚠️ Failed to parse products: ${row.products}`)
+      continue
+    }
+
+    const [, productName, quantityStr, priceStr] = match
+    const quantity = parseInt(quantityStr, 10)
+    const price = parseFloat(priceStr)
+
+    const product = await prisma.product.findFirst({
+      where: { name: productName },
+    })
+
+    if (!product) {
+      console.warn(`⚠️ Product not found: ${productName}`)
+      continue
+    }
+
+    await safeCreate(`order ${row.id}`, async () =>
+      prisma.order.create({
+        data: {
+          userId: user.id,
+          customerName: row.customerName,
+          customerEmail: row.customerEmail,
+          shippingAddress: row.shippingAddress,
+          total: parseFloat(row.total),
+          status: row.status.toUpperCase() as OrderStatus,
+          orderDate: new Date(row.orderDate),
+          items: {
+            create: [
+              {
+                productId: product.id,
+                productName: product.name,
+                quantity,
+                price,
+              },
+            ],
           },
-        ],
-      },
-    },
-  });
+        },
+      })
+    )
+  }
 }
 

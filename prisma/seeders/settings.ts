@@ -1,3 +1,4 @@
+// /home/sami/Documents/GitHub/ecommerce/prisma/seeders/settings.ts
 
 import { PrismaClient } from "@prisma/client";
 

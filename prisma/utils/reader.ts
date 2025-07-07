@@ -7,11 +7,11 @@ const dataDir = path.join(__dirname, '../data');
 
 /**
  * Reads and parses a CSV file from the /data directory.
- * @param filename - The name of the CSV file.
+ * @param filename - The name of the CSV file or absolute path.
  * @returns A Promise resolving to an array of parsed rows.
  */
 export async function readCSV<T extends Record<string, unknown>>(filename: string): Promise<T[]> {
-  const filePath = path.join(dataDir, filename);
+  const filePath = path.isAbsolute(filename) ? filename : path.join(dataDir, filename);
   const fileContent = fs.readFileSync(filePath, 'utf8');
 
   return new Promise((resolve, reject) => {

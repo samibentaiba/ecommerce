@@ -1,0 +1,2 @@
+id,templateId,type,title,content,image,settings,order
+hero-1,1,HERO,Hero Section,"Main headline and description","/placeholder.svg","{""bgColor"":""white""}",1

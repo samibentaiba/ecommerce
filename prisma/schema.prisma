@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
 }
 
 datasource db {
@@ -59,11 +58,11 @@ enum LandingPageSectionType {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String   @id @default("singleton") // enforce singleton ID
+  email     String   @unique // unique email for admin
   name      String
   password  String
-  role      Role     @default(CUSTOMER)
+  role      Role     @default(ADMIN) // default role is ADMIN
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -176,20 +175,23 @@ model LandingPageTemplateSection {
 }
 
 model LandingPage {
-  id          String              @id @default(cuid())
-  title       String
-  slug        String              @unique
-  product     Product             @relation(fields: [productId], references: [id])
-  productId   String
-  template    LandingPageTemplate @relation(fields: [templateId], references: [id])
-  templateId  String
+  id        String  @id @default(cuid())
+  title     String
+  slug      String  @unique
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+
+  // 🔁 Make template optional
+  template   LandingPageTemplate? @relation(fields: [templateId], references: [id])
+  templateId String?
+
   headline    String?
   subheadline String?
   description String?
   heroImage   String?
-  status      LandingPageStatus   @default(DRAFT)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  status      LandingPageStatus @default(DRAFT)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   sections LandingPageSection[]
 }
