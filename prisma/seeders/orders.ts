@@ -1,4 +1,3 @@
-// /home/sami/Documents/GitHub/ecommerce/prisma/seeders/orders.ts
 
 import prisma from '&/prisma'
 import { loadCSV, safeCreate } from '../utils/handler'
@@ -17,12 +16,6 @@ type OrderRow = {
 
 export default async function seedOrders() {
   const rows = await loadCSV<OrderRow>('orders.csv')
-
-  const user = await prisma.user.findFirst()
-  if (!user) {
-    console.error('❌ No user found to associate orders.')
-    return
-  }
 
   for (const row of rows) {
     // Extract product info
@@ -48,7 +41,6 @@ export default async function seedOrders() {
     await safeCreate(`order ${row.id}`, async () =>
       prisma.order.create({
         data: {
-          userId: user.id,
           customerName: row.customerName,
           customerEmail: row.customerEmail,
           shippingAddress: row.shippingAddress,
