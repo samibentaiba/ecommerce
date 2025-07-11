@@ -6,7 +6,7 @@ export interface Order {
   id: string
   customerName: string
   customerEmail: string
-  products: { name: string; quantity: number; price: number }[]
+    products: { name: string; quantity: number; price: number; variant?: string }[]
   total: number
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled"
   orderDate: string
@@ -29,17 +29,12 @@ export function useOrders() {
   }, [])
 
   const updateOrderStatus = async (orderId: string, newStatus: Order["status"]) => {
-    await fetch(`/api/admin/orders/${orderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    })
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: newStatus } : order
-      )
-    )
-  }
+  const target = orders.find((o) => o.id === orderId);
+  if (!target) return;
+
+  await editOrder({ ...target, status: newStatus });
+};
+
 
   const addOrder = async (order: Order) => {
     const res = await fetch("/api/admin/orders", {
@@ -52,7 +47,7 @@ export function useOrders() {
   }
 
   const editOrder = async (updated: Order) => {
-    const res = await fetch(`/api/admin/orders/${updated.id}`, {
+    const res = await fetch(`/api/admin/orders?id=${updated.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updated),
@@ -63,10 +58,11 @@ export function useOrders() {
     )
   }
 
-  const deleteOrder = async (orderId: string) => {
-    await fetch(`/api/admin/orders/${orderId}`, { method: "DELETE" })
-    setOrders((prev) => prev.filter((order) => order.id !== orderId))
-  }
+const deleteOrder = async (orderId: string) => {
+  await fetch(`/api/admin/orders?id=${orderId}`, { method: "DELETE" }) // ✅ fixed
+  setOrders((prev) => prev.filter((order) => order.id !== orderId))
+}
+
 
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {

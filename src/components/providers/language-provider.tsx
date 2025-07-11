@@ -178,6 +178,7 @@ const translations = {
     // Admin Orders
     "admin.manageOrders": "Manage customer orders and track fulfillment",
     "admin.searchOrders": "Search orders...",
+    "admin.newOrder": "New Order",
     "admin.filterByStatus": "Filter by status",
     "admin.allStatus": "All Status",
     "admin.pending": "Pending",
@@ -550,6 +551,7 @@ const translations = {
     // Admin Orders
     "admin.manageOrders": "إدارة طلبات العملاء وتتبع التنفيذ",
     "admin.searchOrders": "البحث في الطلبات...",
+    "admin.newOrder": "إنشاء طلبية جديدة",
     "admin.filterByStatus": "تصفية حسب الحالة",
     "admin.allStatus": "جميع الحالات",
     "admin.pending": "قيد الانتظار",
@@ -923,6 +925,7 @@ const translations = {
     "admin.manageOrders": "Gérer les commandes des clients et suivre l'exécution",
     "admin.searchOrders": "Rechercher des commandes...",
     "admin.filterByStatus": "Filtrer par statut",
+    "admin.newOrder": "Nouvelle Commande",
     "admin.allStatus": "Tous les statuts",
     "admin.pending": "En attente",
     "admin.processing": "En cours de traitement",
@@ -955,6 +958,7 @@ const translations = {
     // Admin Settings
     "admin.storeConfiguration": "Gérer la configuration et les préférences de votre magasin",
     "admin.store": "Magasin",
+    
     "admin.seo": "SEO",
     "admin.email": "Email",
     "admin.payment": "Paiement",

@@ -1,3 +1,4 @@
+// prisma\schema.prisma
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -109,7 +110,7 @@ model ProductVariant {
   type          VariantType
   value         String
   description   String?
-  priceModifier Float?
+  variantPrice  Float?
   stockQuantity Int
   product       Product     @relation(fields: [productId], references: [id])
   productId     String

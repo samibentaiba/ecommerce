@@ -68,7 +68,7 @@ CREATE TABLE "ProductVariant" (
     "type" "VariantType" NOT NULL,
     "value" TEXT NOT NULL,
     "description" TEXT,
-    "priceModifier" DOUBLE PRECISION,
+    "variantPrice" DOUBLE PRECISION,
     "stockQuantity" INTEGER NOT NULL,
     "productId" TEXT NOT NULL,
 
