@@ -2,7 +2,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,18 +40,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Search, X } from "lucide-react";
+import { Plus, Edit, Trash2, Search, X, Filter } from "lucide-react";
 import Image from "next/image";
-import type { Product, ProductImage, ProductVariant } from "@/lib/types";
+
 import { useLanguage } from "@/components/providers/language-provider";
 import { useProducts } from "./hook";
+import type { Product, ProductImage, ProductVariant } from "@/lib/types";
 
 export default function ProductsPage() {
   const { t } = useLanguage();
   const {
-    products,
     setSearchTerm,
     searchTerm,
+    statusFilter,
+    setStatusFilter,
     filteredProducts,
     isDialogOpen,
     setIsDialogOpen,
@@ -71,12 +73,19 @@ export default function ProductsPage() {
     editingProduct,
     handleEdit,
     handleDelete,
+    // Delete handlers
+    showDeleteDialog,
+    setShowDeleteDialog,
+    productToDelete,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleCancelDelete,
   } = useProducts();
   const statusClasses = {
-    active:
-      "bg-green-200 hover:bg-green-300 text-green-900 dark:bg-green-900 dark:hover:bg-green-700 dark:text-green-200",
-    inactive:
-      "bg-red-200 hover:bg-red-300 text-red-900 dark:bg-red-900  dark:hover:bg-red-700 dark:text-red-200",
+    ACTIVE:
+      "bg-green-200 w-full hover:bg-green-300 text-green-900 dark:bg-green-900 dark:hover:bg-green-700 dark:text-green-200",
+    INACTIVE:
+      "bg-red-200 w-full hover:bg-red-300 text-red-900 dark:bg-red-900  dark:hover:bg-red-700 dark:text-red-200",
   };
   const getProductStatusVariant = (status: "ACTIVE" | "INACTIVE") => {
     if (status === "ACTIVE") return "status-active";
@@ -195,26 +204,18 @@ export default function ProductsPage() {
                         <Label htmlFor="status">Status</Label>
                         <Select
                           value={formData.status}
-                          onValueChange={(value: "active" | "inactive") =>
+                          onValueChange={(value: "ACTIVE" | "INACTIVE") =>
                             setFormData({ ...formData, status: value })
                           }
                         >
-                          <div
-                            className={`${
-                              statusClasses[
-                                formData.status.toUpperCase() as keyof typeof statusClasses
-                              ]
-                            }`}
+                          <SelectTrigger
+                            className={`${statusClasses[formData.status]}`}
                           >
-                            <SelectTrigger
-                              className={`${statusClasses[formData.status]}`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                          </div>
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
+                            <SelectItem value="ACTIVE">Active</SelectItem>
+                            <SelectItem value="INACTIVE">Inactive</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -231,7 +232,7 @@ export default function ProductsPage() {
                     </Button>
                   </div>
                   <div className="grid gap-4">
-                    {productImages.map((image) => (
+                    {productImages.map((image: ProductImage) => (
                       <Card key={image.id}>
                         <CardContent className="p-4">
                           <div className="flex items-start space-x-4">
@@ -275,10 +276,12 @@ export default function ProductsPage() {
                                     if (e.target.checked) {
                                       // Make this primary and others not primary
                                       setProductImages(
-                                        productImages.map((img) => ({
-                                          ...img,
-                                          isPrimary: img.id === image.id,
-                                        }))
+                                        productImages.map(
+                                          (img: ProductImage) => ({
+                                            ...img,
+                                            isPrimary: img.id === image.id,
+                                          })
+                                        )
                                       );
                                     }
                                   }}
@@ -318,7 +321,7 @@ export default function ProductsPage() {
                     </Button>
                   </div>
                   <div className="grid gap-4">
-                    {productVariants.map((variant) => (
+                    {productVariants.map((variant: ProductVariant) => (
                       <Card key={variant.id}>
                         <CardContent className="p-4">
                           <div className="space-y-4">
@@ -353,7 +356,7 @@ export default function ProductsPage() {
                                 <Select
                                   value={variant.type}
                                   onValueChange={(
-                                    value: "color" | "size" | "feature"
+                                    value: "COLOR" | "SIZE" | "FEATURE"
                                   ) =>
                                     updateVariant(variant.id, { type: value })
                                   }
@@ -362,9 +365,9 @@ export default function ProductsPage() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="color">Color</SelectItem>
-                                    <SelectItem value="size">Size</SelectItem>
-                                    <SelectItem value="feature">
+                                    <SelectItem value="COLOR">Color</SelectItem>
+                                    <SelectItem value="SIZE">Size</SelectItem>
+                                    <SelectItem value="FEATURE">
                                       Feature
                                     </SelectItem>
                                   </SelectContent>
@@ -382,9 +385,9 @@ export default function ProductsPage() {
                                     })
                                   }
                                   placeholder={
-                                    variant.type === "color"
+                                    variant.type === "COLOR"
                                       ? "#FF0000"
-                                      : variant.type === "size"
+                                      : variant.type === "SIZE"
                                       ? "XL"
                                       : "Feature"
                                   }
@@ -408,11 +411,12 @@ export default function ProductsPage() {
                               <Label>Variant price</Label>
                               <Input
                                 type="number"
-                                value={variant.variantPrice}
+                                value={variant.variantPrice || ""}
                                 onChange={(e) =>
                                   updateVariant(variant.id, {
                                     variantPrice:
-                                      Number.parseInt(e.target.value) || 0,
+                                      Number.parseInt(e.target.value) ||
+                                      undefined,
                                   })
                                 }
                               />
@@ -455,8 +459,9 @@ export default function ProductsPage() {
                           {productImages.length > 0 && (
                             <Image
                               src={
-                                productImages.find((img) => img.isPrimary)
-                                  ?.url || productImages[0].url
+                                productImages.find(
+                                  (img: ProductImage) => img.isPrimary
+                                )?.url || productImages[0].url
                               }
                               alt={formData.name}
                               width={400}
@@ -482,11 +487,13 @@ export default function ProductsPage() {
                                 Available Options:
                               </h4>
                               <div className="flex flex-wrap gap-2">
-                                {productVariants.map((variant) => (
-                                  <Badge key={variant.id} variant="outline">
-                                    {variant.name} ({variant.type})
-                                  </Badge>
-                                ))}
+                                {productVariants.map(
+                                  (variant: ProductVariant) => (
+                                    <Badge key={variant.id} variant="outline">
+                                      {variant.name} ({variant.type})
+                                    </Badge>
+                                  )
+                                )}
                               </div>
                             </div>
                           )}
@@ -496,7 +503,7 @@ export default function ProductsPage() {
                               Category: {formData.category || "Uncategorized"}
                             </p>
                             <p>Stock: {formData.stock || "0"} units</p>
-                            <p>Status: {formData.status}</p>
+                            <p>Status : {formData.status}</p>
                           </div>
                         </div>
                       </div>
@@ -521,14 +528,30 @@ export default function ProductsPage() {
         <CardHeader>
           <CardTitle>{t("admin.productList")}</CardTitle>
           <CardDescription>{t("admin.productListDesc")}</CardDescription>
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t("admin.searchProducts")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex items-center space-x-2 flex-1">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("admin.searchProducts")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            {/* Filter by status */}
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] text-foreground">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -546,7 +569,7 @@ export default function ProductsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product: Product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <Image
@@ -563,15 +586,17 @@ export default function ProductsPage() {
                   <TableCell>{product.stock}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {product.variants?.slice(0, 2).map((variant) => (
-                        <Badge
-                          key={variant.id}
-                          variant="secondary"
-                          className="text-xs"
-                        >
-                          {variant.name}
-                        </Badge>
-                      ))}
+                      {product.variants
+                        ?.slice(0, 2)
+                        .map((variant: ProductVariant) => (
+                          <Badge
+                            key={variant.id}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {variant.name}
+                          </Badge>
+                        ))}
                       {(product.variants?.length || 0) > 2 && (
                         <Badge variant="outline" className="text-xs">
                           +{(product.variants?.length || 0) - 2} more
@@ -580,11 +605,7 @@ export default function ProductsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={getProductStatusVariant(
-                        product.status.toUpperCase() as "ACTIVE" | "INACTIVE"
-                      )}
-                    >
+                    <Badge variant={getProductStatusVariant(product.status)}>
                       {product.status}
                     </Badge>
                   </TableCell>
@@ -598,9 +619,9 @@ export default function ProductsPage() {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
-                        onClick={() => handleDelete(String(product.id))}
+                        onClick={() => handleDeleteClick(product)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -612,6 +633,29 @@ export default function ProductsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && productToDelete && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete product {productToDelete.name}? This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={handleCancelDelete}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDelete}>
+                Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

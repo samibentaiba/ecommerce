@@ -1,15 +1,28 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import type { ProductPage } from "@/lib/types";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -18,180 +31,81 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, ExternalLink, Search } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Edit, Trash2, ExternalLink, Search, Filter } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { useLanguage } from "@/components/providers/language-provider";
 
-interface ProductPage {
-  id: number
-  title: string
-  productId: number
-  productName: string
-  metaTitle: string
-  metaDescription: string
-  content: string
-  featuredImage: string
-  status: "published" | "draft"
-  seoScore: number
-  lastModified: string
-}
-
+import { useProductPage } from "./hook";
 export default function ProductPagesPage() {
-  const [productPages, setProductPages] = useState<ProductPage[]>([
-    {
-      id: 1,
-      title: "Premium Wireless Headphones - Product Page",
-      productId: 1,
-      productName: "Premium Wireless Headphones",
-      metaTitle: "Premium Wireless Headphones | Best Audio Experience",
-      metaDescription:
-        "Experience exceptional sound quality with our premium wireless headphones featuring advanced noise cancellation.",
-      content: "Detailed product description with specifications, features, and benefits...",
-      featuredImage: "/placeholder.svg?height=200&width=300",
-      status: "published",
-      seoScore: 85,
-      lastModified: "2024-01-15",
-    },
-    {
-      id: 2,
-      title: "Smart Fitness Watch - Product Page",
-      productId: 2,
-      productName: "Smart Fitness Watch",
-      metaTitle: "Smart Fitness Watch | Track Your Health Goals",
-      metaDescription: "Advanced fitness tracking with heart rate monitoring, GPS, and comprehensive health insights.",
-      content: "Comprehensive product information including health tracking features...",
-      featuredImage: "/placeholder.svg?height=200&width=300",
-      status: "draft",
-      seoScore: 72,
-      lastModified: "2024-01-14",
-    },
-    {
-      id: 3,
-      title: "Eco-Friendly Water Bottle - Product Page",
-      productId: 3,
-      productName: "Eco-Friendly Water Bottle",
-      metaTitle: "Eco-Friendly Water Bottle | Sustainable Hydration",
-      metaDescription: "Sustainable water bottle made from recycled materials. Perfect for eco-conscious consumers.",
-      content: "Environmental benefits and product sustainability information...",
-      featuredImage: "/placeholder.svg?height=200&width=300",
-      status: "published",
-      seoScore: 90,
-      lastModified: "2024-01-13",
-    },
-  ])
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingPage, setEditingPage] = useState<ProductPage | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-
-  const [formData, setFormData] = useState<{
-    title: string
-    productId: string
-    metaTitle: string
-    metaDescription: string
-    content: string
-    status: "published" | "draft"
-  }>({
-    title: "",
-    productId: "",
-    metaTitle: "",
-    metaDescription: "",
-    content: "",
-    status: "draft",
-  })
-
-  const products = [
-    { id: 1, name: "Premium Wireless Headphones" },
-  ]
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const selectedProduct = products.find((p) => p.id === Number.parseInt(formData.productId))
-
-    if (editingPage) {
-      setProductPages(
-        productPages.map((page) =>
-          page.id === editingPage.id
-            ? {
-              ...editingPage,
-              ...formData,
-              productId: Number.parseInt(formData.productId),
-              productName: selectedProduct?.name || "",
-              lastModified: new Date().toISOString().split("T")[0],
-            }
-            : page,
-        ),
-      )
-    } else {
-      const newPage: ProductPage = {
-        id: Date.now(),
-        ...formData,
-        productId: Number.parseInt(formData.productId),
-        productName: selectedProduct?.name || "",
-        featuredImage: "/placeholder.svg?height=200&width=300",
-        seoScore: Math.floor(Math.random() * 30) + 70,
-        lastModified: new Date().toISOString().split("T")[0],
-      }
-      setProductPages([...productPages, newPage])
-    }
-
-    setIsDialogOpen(false)
-    setEditingPage(null)
-    setFormData({ title: "", productId: "", metaTitle: "", metaDescription: "", content: "", status: "draft" })
-  }
-
-  const handleEdit = (page: ProductPage) => {
-    setEditingPage(page)
-    setFormData({
-      title: page.title,
-      productId: page.productId.toString(),
-      metaTitle: page.metaTitle,
-      metaDescription: page.metaDescription,
-      content: page.content,
-      status: page.status,
-    })
-    setIsDialogOpen(true)
-  }
-
-  const handleDelete = (id: number) => {
-    setProductPages(productPages.filter((page) => page.id !== id))
-  }
-
-  const getSeoScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-600"
-    if (score >= 60) return "text-yellow-600"
-    return "text-red-600"
-  }
-
-  const filteredPages = productPages.filter(
-    (page) =>
-      page.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      page.productName.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
+  const { t } = useLanguage();
+  const {
+    productPages,
+    isDialogOpen,
+    searchTerm,
+    statusFilter,
+    setStatusFilter,
+    editingPage,
+    products,
+    formData,
+    setSearchTerm,
+    handleDelete,
+    handleEdit,
+    setEditingPage,
+    setProductPages,
+    setIsDialogOpen,
+    getSeoScoreColor,
+    setFormData,
+    handleSubmit,
+    // Delete handlers
+    showDeleteDialog,
+    setShowDeleteDialog,
+    pageToDelete,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleCancelDelete,
+  } = useProductPage();
+  const statusClasses = {
+    PUBLISHED:
+      "bg-green-200 w-full hover:bg-green-300 text-green-900 dark:bg-green-900 dark:hover:bg-green-700 dark:text-green-200",
+    DRAFT:
+      "bg-red-200 w-full hover:bg-red-300 text-red-900 dark:bg-red-900  dark:hover:bg-red-700 dark:text-red-200",
+  };
+  const getProductStatusVariant = (status: "PUBLISHED" | "DRAFT") => {
+    if (status === "PUBLISHED") return "status-active";
+    if (status === "DRAFT") return "status-inactive";
+    return "default";
+  };
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Product Pages</h2>
-          <p className="text-muted-foreground">Manage individual product page content and SEO</p>
+          <p className="text-muted-foreground">
+            Manage individual product page content and SEO
+          </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button
               onClick={() => {
-                setEditingPage(null)
+                setEditingPage(null);
                 setFormData({
                   title: "",
                   productId: "",
                   metaTitle: "",
                   metaDescription: "",
                   content: "",
-                  status: "draft",
-                })
+                  status: "DRAFT",
+                });
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -200,9 +114,13 @@ export default function ProductPagesPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingPage ? "Edit Product Page" : "Create New Product Page"}</DialogTitle>
+              <DialogTitle>
+                {editingPage ? "Edit Product Page" : "Create New Product Page"}
+              </DialogTitle>
               <DialogDescription>
-                {editingPage ? "Update product page content and SEO" : "Create a custom page for a product"}
+                {editingPage
+                  ? "Update product page content and SEO"
+                  : "Create a custom page for a product"}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
@@ -212,7 +130,9 @@ export default function ProductPagesPage() {
                   <Input
                     id="title"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -220,14 +140,19 @@ export default function ProductPagesPage() {
                   <Label htmlFor="product">Product</Label>
                   <Select
                     value={formData.productId}
-                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, productId: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a product" />
                     </SelectTrigger>
                     <SelectContent>
                       {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
+                        <SelectItem
+                          key={product.id}
+                          value={product.id.toString()}
+                        >
                           {product.name}
                         </SelectItem>
                       ))}
@@ -239,7 +164,9 @@ export default function ProductPagesPage() {
                   <Input
                     id="metaTitle"
                     value={formData.metaTitle}
-                    onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, metaTitle: e.target.value })
+                    }
                     placeholder="SEO optimized title"
                     required
                   />
@@ -249,7 +176,12 @@ export default function ProductPagesPage() {
                   <Textarea
                     id="metaDescription"
                     value={formData.metaDescription}
-                    onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        metaDescription: e.target.value,
+                      })
+                    }
                     placeholder="SEO meta description (150-160 characters)"
                     rows={3}
                     required
@@ -260,7 +192,9 @@ export default function ProductPagesPage() {
                   <Textarea
                     id="content"
                     value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, content: e.target.value })
+                    }
                     placeholder="Detailed product content, features, specifications..."
                     rows={6}
                     required
@@ -270,20 +204,26 @@ export default function ProductPagesPage() {
                   <Label htmlFor="status">Status</Label>
                   <Select
                     value={formData.status}
-                    onValueChange={(value: "published" | "draft") => setFormData({ ...formData, status: value })}
+                    onValueChange={(value: "PUBLISHED" | "DRAFT") =>
+                      setFormData({ ...formData, status: value })
+                    }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      className={`${statusClasses[formData.status]}`}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="DRAFT">DRAFT</SelectItem>
+                      <SelectItem value="PUBLISHED">PUBLISHED</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{editingPage ? "Update Page" : "Create Page"}</Button>
+                <Button type="submit">
+                  {editingPage ? "Update Page" : "Create Page"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -293,15 +233,33 @@ export default function ProductPagesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Product Pages</CardTitle>
-          <CardDescription>Manage content and SEO for individual product pages</CardDescription>
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search product pages..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <CardDescription>
+            Manage content and SEO for individual product pages
+          </CardDescription>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex items-center space-x-2 flex-1">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search product pages..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            {/* Filter by status */}
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] text-foreground">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="PUBLISHED">Published</SelectItem>
+                  <SelectItem value="DRAFT">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -310,7 +268,6 @@ export default function ProductPagesPage() {
               <TableRow>
                 <TableHead>Image</TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead>Product</TableHead>
                 <TableHead>SEO Score</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Modified</TableHead>
@@ -318,7 +275,7 @@ export default function ProductPagesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPages.map((page) => (
+              {productPages.map((page: ProductPage) => (
                 <TableRow key={page.id}>
                   <TableCell>
                     <Image
@@ -332,28 +289,52 @@ export default function ProductPagesPage() {
                   <TableCell>
                     <div>
                       <div className="font-medium">{page.title}</div>
-                      <div className="text-sm text-muted-foreground truncate max-w-xs">{page.metaTitle}</div>
+                      <div className="text-sm text-muted-foreground truncate max-w-xs">
+                        {page.metaTitle}
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell>{page.productName}</TableCell>
                   <TableCell>
-                    <span className={`font-semibold ${getSeoScoreColor(page.seoScore)}`}>{page.seoScore}/100</span>
+                    <span
+                      className={`font-semibold ${getSeoScoreColor(
+                        page.seoScore
+                      )}`}
+                    >
+                      {page.seoScore}/100
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={page.status === "published" ? "default" : "secondary"}>{page.status}</Badge>
+                    <Badge variant={getProductStatusVariant(page.status)}>
+                      {page.status}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{new Date(page.lastModified).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(page.lastModified).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Link href={`/products/${page.productId}`} target="_blank">
+                      <Link
+                        href={`/products/${page.productId}`}
+                        target="_blank"
+                      >
                         <Button variant="outline" size="sm">
                           <ExternalLink className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(page)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(page)}
+                        aria-label="Edit"
+                        title="Edit"
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(page.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteClick(page)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -364,6 +345,29 @@ export default function ProductPagesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && pageToDelete && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete product page "{pageToDelete.title}"? This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={handleCancelDelete}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDelete}>
+                Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
-  )
+  );
 }

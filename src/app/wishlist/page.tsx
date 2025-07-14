@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,50 +12,44 @@ import { useToast } from "@/hooks/use-toast"
 interface WishlistItem {
   id: number
   name: string
-  price: number
-  originalPrice?: number
-  image: string
-  inStock: boolean
-  rating: number
-  reviews: number
+  price?: number
+  image?: string
+  addedAt: string
 }
 
 export default function WishlistPage() {
   const { toast } = useToast()
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([
-    {
-      id: 1,
-      name: "Premium Wireless Headphones",
-      price: 299.99,
-      originalPrice: 399.99,
-      image: "/placeholder.svg?height=300&width=300",
-      inStock: true,
-      rating: 4.8,
-      reviews: 124,
-    },
-    {
-      id: 3,
-      name: "Eco-Friendly Water Bottle",
-      price: 29.99,
-      image: "/placeholder.svg?height=300&width=300",
-      inStock: true,
-      rating: 4.9,
-      reviews: 256,
-    },
-    {
-      id: 5,
-      name: "Bluetooth Speaker",
-      price: 89.99,
-      image: "/placeholder.svg?height=300&width=300",
-      inStock: false,
-      rating: 4.7,
-      reviews: 143,
-    },
-  ])
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([])
+
+  // Load wishlist from localStorage on mount
+  useEffect(() => {
+    const loadWishlist = () => {
+      if (typeof window === 'undefined') return
+      const stored = localStorage.getItem('wishlist')
+      if (stored) {
+        try {
+          const items = JSON.parse(stored)
+          setWishlistItems(items)
+        } catch (error) {
+          console.error('Error parsing wishlist from localStorage:', error)
+          setWishlistItems([])
+        }
+      }
+    }
+
+    loadWishlist()
+  }, [])
 
   const removeFromWishlist = (id: number) => {
     const item = wishlistItems.find((item) => item.id === id)
-    setWishlistItems((items) => items.filter((item) => item.id !== id))
+    const updatedWishlist = wishlistItems.filter((item) => item.id !== id)
+    setWishlistItems(updatedWishlist)
+    
+    // Update localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wishlist', JSON.stringify(updatedWishlist))
+    }
+    
     toast({
       title: "Removed from Wishlist",
       description: `${item?.name} has been removed from your wishlist.`,
@@ -165,7 +159,7 @@ export default function WishlistPage() {
               <CardContent className="p-0">
                 <div className="relative overflow-hidden rounded-t-lg">
                   <Image
-                    src={item.image || "/placeholder.svg"}
+                    src={item.image || "/placeholder.svg?height=300&width=300"}
                     alt={item.name}
                     width={300}
                     height={300}
@@ -179,56 +173,24 @@ export default function WishlistPage() {
                   >
                     <Heart className="h-4 w-4 fill-red-500 text-red-500" />
                   </Button>
-                  {!item.inStock && (
-                    <Badge variant="destructive" className="absolute top-2 left-2">
-                      Out of Stock
-                    </Badge>
-                  )}
-                  {item.originalPrice && (
-                    <Badge variant="destructive" className="absolute bottom-2 left-2">
-                      Sale
-                    </Badge>
-                  )}
                 </div>
 
                 <div className="p-4">
                   <h3 className="font-semibold text-lg mb-2 line-clamp-2">{item.name}</h3>
 
-                  <div className="flex items-center mb-3">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`h-4 w-4 ${
-                            i < Math.floor(item.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
-                          }`}
-                        />
-                      ))}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      {item.price && <span className="text-xl font-bold">${item.price}</span>}
                     </div>
-                    <span className="text-sm text-muted-foreground ml-2">
-                      {item.rating} ({item.reviews})
+                    <span className="text-sm text-muted-foreground">
+                      Added {new Date(item.addedAt).toLocaleDateString()}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xl font-bold">${item.price}</span>
-                      {item.originalPrice && (
-                        <span className="text-sm text-muted-foreground line-through">${item.originalPrice}</span>
-                      )}
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Button className="w-full" onClick={() => addToCart(item.id)} disabled={!item.inStock}>
-                      {item.inStock ? (
-                        <>
-                          <ShoppingCart className="h-4 w-4 mr-2" />
-                          Add to Cart
-                        </>
-                      ) : (
-                        "Out of Stock"
-                      )}
+                    <Button className="w-full" onClick={() => addToCart(item.id)}>
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart
                     </Button>
                     <div className="flex gap-2">
                       <Link href={`/products/${item.id}`} className="flex-1">

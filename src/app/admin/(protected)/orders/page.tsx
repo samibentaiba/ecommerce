@@ -2,7 +2,6 @@
 
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,11 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Eye, Search, Filter, Plus, Trash2, Pencil } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
-import { useOrders, Order } from "./hook";
-import { OrderForm } from "./form";
-import { v4 as uuidv4 } from "uuid";
+import { useOrders } from "./hook";
+
+
 
 export default function OrdersPage() {
   const { t } = useLanguage();
@@ -53,10 +53,39 @@ export default function OrdersPage() {
     selectedOrder,
     setSelectedOrder,
     updateOrderStatus,
-    addOrder,
-    editOrder,
     deleteOrder,
     getStatusColor,
+    // Form state
+    showEditor,
+    setShowEditor,
+    editingOrder,
+    form,
+    productsList,
+    selectedProductId,
+    setSelectedProductId,
+    selectedVariantType,
+    setSelectedVariantType,
+    selectedVariantValue,
+    setSelectedVariantValue,
+    selectedQuantity,
+    setSelectedQuantity,
+    // Form handlers
+    handleCreate,
+    handleEdit,
+    handleSaveOrder,
+    handleFormChange,
+    addProductToForm,
+    // Delete handlers
+    showDeleteDialog,
+    setShowDeleteDialog,
+    orderToDelete,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleCancelDelete,
+    // Computed values
+    selectedProduct,
+    variantTypes,
+    filteredVariants,
   } = useOrders();
   const statusClasses = {
     PENDING:
@@ -70,29 +99,6 @@ export default function OrdersPage() {
     CANCELLED:
       "bg-red-200 hover:bg-red-300 text-red-900 dark:bg-red-900 dark:text-red-200",
   };
-
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-
-  const handleCreate = () => {
-    setEditingOrder(null);
-    setShowEditor(true);
-  };
-
-  const handleSave = (order: Order) => {
-    if (editingOrder) {
-      editOrder(order);
-    } else {
-      addOrder({ ...order, id: uuidv4() });
-    }
-    setShowEditor(false);
-  };
-
-  const handleEdit = (order: Order) => {
-    setEditingOrder(order);
-    setShowEditor(true);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -118,10 +124,11 @@ export default function OrdersPage() {
             className="max-w-sm"
           />
         </div>
-        <div className="flex items-center space-x-2">
+        {/* Filter by status */}
+        <div className="flex items-center space-x-2 text-muted-foreground">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] text-foreground">
               <SelectValue placeholder={t("admin.filterByStatus")} />
             </SelectTrigger>
             <SelectContent>
@@ -163,7 +170,7 @@ export default function OrdersPage() {
                     <div>
                       <div className="font-medium">{order.customerName}</div>
                       <div className="text-sm text-muted-foreground">
-                        {order.customerEmail}
+                        {order.customerPhone}
                       </div>
                     </div>
                   </TableCell>
@@ -203,7 +210,7 @@ export default function OrdersPage() {
                         <div className="space-y-4 mt-4">
                           <div>
                             <strong>Customer:</strong> {order.customerName} (
-                            {order.customerEmail})
+                            {order.customerPhone})
                           </div>
 
                           <div>
@@ -236,13 +243,15 @@ export default function OrdersPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleEdit(order)}
+                      aria-label="Edit"
+                      title="Edit"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => deleteOrder(order.id)}
+                      onClick={() => handleDeleteClick(order)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -254,19 +263,190 @@ export default function OrdersPage() {
         </CardContent>
       </Card>
 
+      {/* Order Form Dialog */}
       {showEditor && (
         <Dialog open={showEditor} onOpenChange={setShowEditor}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>
                 {editingOrder ? "Edit Order" : "Create Order"}
               </DialogTitle>
             </DialogHeader>
-            <OrderForm
-              defaultOrder={editingOrder}
-              onSave={handleSave}
-              onCancel={() => setShowEditor(false)}
-            />
+            <div className="space-y-4 mt-4">
+              <Input
+                placeholder="Customer Name"
+                value={form.customerName}
+                onChange={(e) =>
+                  handleFormChange("customerName", e.target.value)
+                }
+              />
+              <Input
+                placeholder="Customer Phone"
+                value={form.customerPhone}
+                onChange={(e) =>
+                  handleFormChange("customerPhone", e.target.value)
+                }
+              />
+              <Input
+                placeholder="Shipping Address"
+                value={form.shippingAddress}
+                onChange={(e) =>
+                  handleFormChange("shippingAddress", e.target.value)
+                }
+              />
+
+              {/* Order Status Select */}
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(value) => handleFormChange("status", value)}
+                >
+                  <SelectTrigger
+                    className={`w-full rounded-md ${
+                      statusClasses[
+                        form.status.toUpperCase() as keyof typeof statusClasses
+                      ]
+                    }`}
+                  >
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="shipped">Shipped</SelectItem>
+                    <SelectItem value="delivered">Delivered</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Product Selection */}
+              <div className="space-y-2">
+                <Label>Select Product</Label>
+                <Select
+                  value={selectedProductId}
+                  onValueChange={setSelectedProductId}
+                  
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose product" />
+                  </SelectTrigger>
+                  <SelectContent >
+                    {productsList.map((p) => (
+                      <SelectItem  key={p.id} value={p.id} >
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {variantTypes.length > 0 && (
+                  <>
+                    <Label>Select Variant Type</Label>
+                    <Select
+                      value={selectedVariantType}
+                      onValueChange={(value) =>
+                        setSelectedVariantType(value as any)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose type (e.g. COLOR)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {variantTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
+
+                {selectedVariantType && filteredVariants.length > 0 && (
+                  <>
+                    <Label>Select Variant</Label>
+                    <Select
+                      value={selectedVariantValue}
+                      onValueChange={setSelectedVariantValue}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose variant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredVariants.map((v) => (
+                          <SelectItem key={v.id} value={v.value}>
+                            {v.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
+
+                <Input
+                  type="number"
+                  placeholder="Quantity"
+                  value={selectedQuantity}
+                  onChange={(e) =>
+                    setSelectedQuantity(parseInt(e.target.value))
+                  }
+                />
+
+                <Button type="button" onClick={addProductToForm}>
+                  Add Product
+                </Button>
+
+                {form.products.length > 0 && (
+                  <ul className="text-sm list-disc list-inside text-muted-foreground">
+                    {form.products.map((item, idx) => (
+                      <li key={idx}>
+                        {item.name} {item.variant ? `(${item.variant})` : ""} ×{" "}
+                        {item.quantity} — $
+                        {(item.price * item.quantity).toFixed(2)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <strong>Total:</strong> ${form.total.toFixed(2)}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="ghost" onClick={() => setShowEditor(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveOrder}>
+                  {editingOrder ? "Update" : "Create"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && orderToDelete && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete order {orderToDelete.id}? This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={handleCancelDelete}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDelete}>
+                Delete
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       )}

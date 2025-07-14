@@ -1,51 +1,103 @@
 // /home/sami/Documents/GitHub/ecommerce/prisma/seeders/landingPages.ts
 
-import prisma from '&/prisma'
-import { LandingPageStatus } from '@prisma/client'
-import { safeCreate } from '../utils/handler'
+import prisma from "&/prisma";
+import { loadCSV, safeCreate } from "../utils/handler";
+import { LandingPageStatus } from "@prisma/client";
+
+type LandingPageRow = {
+  id: string;
+  title: string;
+  slug: string;
+  productId: string;
+  headline: string;
+  description: string;
+  heroImage: string;
+  status: string;
+  createdAt: string;
+  templateId: string;
+};
 
 export default async function seedLandingPages() {
-  const products = await prisma.product.findMany()
-  const templates = await prisma.landingPageTemplate.findMany()
+  const rows = await loadCSV<LandingPageRow>("landing_pages.csv");
 
-  if (!products.length) {
-    console.warn('⚠️ No products found. Skipping landing page seeding.')
-    return
-  }
+  for (const row of rows) {
+    // Check if the product exists
+    const product = await prisma.product.findUnique({
+      where: { id: row.productId },
+    });
 
-  for (const product of products) {
-    const existing = await prisma.landingPage.findFirst({
-      where: { productId: product.id },
-    })
-
-    if (existing) {
-      console.log(`✅ Landing page already exists for product "${product.name}". Skipping.`)
-      continue
+    if (!product) {
+      console.warn(`⚠️ Product not found for landing page: ${row.productId}`);
+      continue;
     }
 
-    const useTemplate = templates.length > 0 && Math.random() > 0.5
-    const template = useTemplate
-      ? templates[Math.floor(Math.random() * templates.length)]
-      : null
+    // Check if template exists (if templateId is provided)
+    let templateId = null;
+    if (row.templateId && row.templateId !== "null" && row.templateId !== "") {
+      // Try to find template by ID first
+      let template = await prisma.landingPageTemplate.findUnique({
+        where: { id: row.templateId },
+      });
 
-    const templateId = template ? template.id : null
+      // If not found by ID, try to find by name (for backward compatibility)
+      if (!template) {
+        const templateNames = {
+          "1": "Modern Hero Template",
+          "2": "Product Showcase Template",
+          "3": "Minimalist Template",
+          "4": "Feature-Rich Template",
+          "modern-hero-template": "Modern Hero Template",
+          "product-showcase-template": "Product Showcase Template",
+          "minimalist-template": "Minimalist Template",
+          "feature-rich-template": "Feature-Rich Template",
+        };
+        const templateName =
+          templateNames[row.templateId as keyof typeof templateNames];
+        if (templateName) {
+          template = await prisma.landingPageTemplate.findFirst({
+            where: { name: templateName },
+          });
+        }
+      }
 
-    await safeCreate(`landing page for "${product.name}"`, async () =>
+      if (template) {
+        templateId = template.id;
+      } else {
+        console.warn(`⚠️ Template not found: ${row.templateId}`);
+      }
+    }
+
+    // If no template found, use the default template
+    if (!templateId) {
+      const defaultTemplate = await prisma.landingPageTemplate.findFirst({
+        where: { isDefault: true },
+      });
+      if (defaultTemplate) {
+        templateId = defaultTemplate.id;
+        console.log(`✅ Using default template for landing page: ${row.title}`);
+      } else {
+        console.warn(
+          `⚠️ No default template found for landing page: ${row.title}`
+        );
+        continue; // Skip this landing page if no template is available
+      }
+    }
+
+    await safeCreate(`landing page ${row.title}`, async () =>
       prisma.landingPage.create({
         data: {
-          title: `${product.name} Landing`,
-          slug: product.name.toLowerCase().replace(/\s+/g, '-'),
-          productId: product.id,
-          templateId,
-          headline: `Discover ${product.name}`,
-          description: product.description || '',
-          heroImage: '/placeholder.svg?height=400&width=800',
-          status: LandingPageStatus.PUBLISHED,
-          createdAt: new Date(),
+          id: row.id,
+          title: row.title,
+          slug: row.slug,
+          productId: row.productId,
+          headline: row.headline,
+          description: row.description,
+          heroImage: row.heroImage,
+          status: row.status.toUpperCase() as LandingPageStatus,
+          createdAt: new Date(row.createdAt),
+          templateId: templateId,
         },
-      }),
-      { productId: product.id, templateId: templateId ?? 'none' }
-    )
+      })
+    );
   }
 }
-

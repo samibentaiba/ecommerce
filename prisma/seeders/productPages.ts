@@ -5,6 +5,7 @@ import { ProductPageStatus } from '@prisma/client'
 import { loadCSV, safeCreate } from '../utils/handler'
 
 type ProductPageRow = {
+  id: string
   title: string
   slug: string
   productName: string
@@ -33,6 +34,7 @@ export default async function seedProductPages() {
     await safeCreate(`productPage "${row.title}"`, async () =>
       prisma.productPage.create({
         data: {
+          id: row.id,
           title: row.title,
           slug: row.slug,
           productId: product.id,

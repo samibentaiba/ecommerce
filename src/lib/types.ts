@@ -1,13 +1,13 @@
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   description: string;
   price: number;
   originalPrice?: number;
   category: string;
   stock: number;
-  status: "active" | "inactive";
-  image: string;
+  status: "ACTIVE" | "INACTIVE";
+  image?: string;
   images?: ProductImage[];
   rating?: number;
   reviews?: number;
@@ -27,7 +27,7 @@ export interface ProductImage {
 export interface ProductVariant {
   id: string;
   name: string;
-  type: "color" | "size" | "feature";
+  type: "COLOR" | "SIZE" | "FEATURE";
   value: string;
   description?: string;
   images: ProductImage[];
@@ -38,7 +38,7 @@ export interface ProductVariant {
 export interface Order {
   id: string;
   customerName: string;
-  customerEmail: string;
+  customerPhone: string;
   products: { name: string; quantity: number; price: number }[];
   total: number;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
@@ -47,18 +47,18 @@ export interface Order {
 }
 
 export interface LandingPage {
-  id: number;
+  id: string;
   title: string;
   slug: string;
-  productId: number;
+  productId: string;
   productName: string;
   headline: string;
   subheadline?: string;
   description: string;
   heroImage: string;
-  status: "published" | "draft";
+  status: "PUBLISHED" | "DRAFT";
   createdAt: string;
-  templateId?: number;
+  templateId?: string;
   sections?: LandingPageSection[];
   features?: string[];
   testimonials?: {
@@ -74,7 +74,7 @@ export interface LandingPage {
 }
 
 export interface LandingPageTemplate {
-  id: number;
+  id: string;
   name: string;
   description: string;
   thumbnail: string;
@@ -98,6 +98,13 @@ export interface TemplateSection {
   image?: string;
   settings: Record<string, any>;
   order: number;
+  backgroundColor?: string;
+  textColor?: string;
+  padding?: string;
+  margin?: string;
+  borderRadius?: string;
+  isVisible?: boolean;
+  customCSS?: string;
 }
 
 export interface LandingPageSection {
@@ -115,4 +122,25 @@ export interface LandingPageSection {
   image?: string;
   settings: Record<string, any>;
   order: number;
+  backgroundColor?: string;
+  textColor?: string;
+  padding?: string;
+  margin?: string;
+  borderRadius?: string;
+  isVisible?: boolean;
+  customCSS?: string;
+}
+
+export interface ProductPage {
+  id: string;
+  title: string;
+  productId: string;
+  productName: string;
+  metaTitle: string;
+  metaDescription: string;
+  content: string;
+  featuredImage: string;
+  status: "PUBLISHED" | "DRAFT";
+  seoScore: number;
+  lastModified: string;
 }

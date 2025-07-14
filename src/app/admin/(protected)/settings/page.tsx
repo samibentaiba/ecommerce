@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,67 +10,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Save, Upload, Globe, Mail, Shield, Palette, Store } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Save, Upload, Globe, Mail, Shield, Palette, Store, Loader2 } from "lucide-react"
+import { useSettings } from "./hook"
 
 export default function SettingsPage() {
-  const { toast } = useToast()
+  const {
+    settings,
+    loading,
+    saving,
+    updateSetting,
+    saveSettings,
+  } = useSettings()
 
-  const [settings, setSettings] = useState({
-    // Store Settings
-    storeName: "EcoStore",
-    storeDescription: "Your trusted partner for quality products and exceptional service.",
-    storeEmail: "contact@ecostore.com",
-    storePhone: "+1 (555) 123-4567",
-    storeAddress: "123 Commerce Street, Business City, BC 12345",
-
-    // SEO Settings
-    siteTitle: "EcoStore - Quality Products for Modern Life",
-    siteDescription:
-      "Discover amazing products with exceptional quality and service. Shop electronics, lifestyle products, and more.",
-    siteKeywords: "ecommerce, electronics, lifestyle, quality products",
-
-    // Email Settings
-    emailNotifications: true,
-    orderConfirmations: true,
-    marketingEmails: false,
-    smtpHost: "smtp.gmail.com",
-    smtpPort: "587",
-    smtpUsername: "",
-    smtpPassword: "",
-
-    // Payment Settings
-    currency: "USD",
-    taxRate: "8.5",
-    shippingRate: "9.99",
-    freeShippingThreshold: "50.00",
-
-    // Theme Settings
-    primaryColor: "#3b82f6",
-    secondaryColor: "#64748b",
-    accentColor: "#10b981",
-    darkMode: false,
-
-    // Security Settings
-    twoFactorAuth: false,
-    sessionTimeout: "30",
-    passwordRequirements: true,
-
-    // Analytics
-    googleAnalyticsId: "",
-    facebookPixelId: "",
-    enableTracking: true,
-  })
-
-  const handleSave = (section: string) => {
-    toast({
-      title: "Settings Saved",
-      description: `${section} settings have been updated successfully.`,
-    })
+  const handleSave = async (section: string) => {
+    await saveSettings(section)
   }
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setSettings((prev) => ({ ...prev, [field]: value }))
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading settings...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -121,7 +84,7 @@ export default function SettingsPage() {
                   <Input
                     id="storeName"
                     value={settings.storeName}
-                    onChange={(e) => handleInputChange("storeName", e.target.value)}
+                    onChange={(e) => updateSetting("storeName", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -130,7 +93,7 @@ export default function SettingsPage() {
                     id="storeEmail"
                     type="email"
                     value={settings.storeEmail}
-                    onChange={(e) => handleInputChange("storeEmail", e.target.value)}
+                    onChange={(e) => updateSetting("storeEmail", e.target.value)}
                   />
                 </div>
               </div>
@@ -140,7 +103,7 @@ export default function SettingsPage() {
                 <Textarea
                   id="storeDescription"
                   value={settings.storeDescription}
-                  onChange={(e) => handleInputChange("storeDescription", e.target.value)}
+                  onChange={(e) => updateSetting("storeDescription", e.target.value)}
                   rows={3}
                 />
               </div>
@@ -151,7 +114,7 @@ export default function SettingsPage() {
                   <Input
                     id="storePhone"
                     value={settings.storePhone}
-                    onChange={(e) => handleInputChange("storePhone", e.target.value)}
+                    onChange={(e) => updateSetting("storePhone", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -159,13 +122,21 @@ export default function SettingsPage() {
                   <Input
                     id="storeAddress"
                     value={settings.storeAddress}
-                    onChange={(e) => handleInputChange("storeAddress", e.target.value)}
+                    onChange={(e) => updateSetting("storeAddress", e.target.value)}
                   />
                 </div>
               </div>
 
-              <Button onClick={() => handleSave("Store")} className="w-full md:w-auto">
-                <Save className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => handleSave("Store")} 
+                className="w-full md:w-auto"
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Store Settings
               </Button>
             </CardContent>
@@ -184,7 +155,7 @@ export default function SettingsPage() {
                 <Input
                   id="siteTitle"
                   value={settings.siteTitle}
-                  onChange={(e) => handleInputChange("siteTitle", e.target.value)}
+                  onChange={(e) => updateSetting("siteTitle", e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">Appears in browser tabs and search results</p>
               </div>
@@ -194,7 +165,7 @@ export default function SettingsPage() {
                 <Textarea
                   id="siteDescription"
                   value={settings.siteDescription}
-                  onChange={(e) => handleInputChange("siteDescription", e.target.value)}
+                  onChange={(e) => updateSetting("siteDescription", e.target.value)}
                   rows={3}
                 />
                 <p className="text-sm text-muted-foreground">150-160 characters recommended</p>
@@ -205,7 +176,7 @@ export default function SettingsPage() {
                 <Input
                   id="siteKeywords"
                   value={settings.siteKeywords}
-                  onChange={(e) => handleInputChange("siteKeywords", e.target.value)}
+                  onChange={(e) => updateSetting("siteKeywords", e.target.value)}
                   placeholder="keyword1, keyword2, keyword3"
                 />
               </div>
@@ -220,7 +191,7 @@ export default function SettingsPage() {
                     <Input
                       id="googleAnalyticsId"
                       value={settings.googleAnalyticsId}
-                      onChange={(e) => handleInputChange("googleAnalyticsId", e.target.value)}
+                      onChange={(e) => updateSetting("googleAnalyticsId", e.target.value)}
                       placeholder="GA-XXXXXXXXX-X"
                     />
                   </div>
@@ -229,7 +200,7 @@ export default function SettingsPage() {
                     <Input
                       id="facebookPixelId"
                       value={settings.facebookPixelId}
-                      onChange={(e) => handleInputChange("facebookPixelId", e.target.value)}
+                      onChange={(e) => updateSetting("facebookPixelId", e.target.value)}
                       placeholder="XXXXXXXXXXXXXXX"
                     />
                   </div>
@@ -239,14 +210,22 @@ export default function SettingsPage() {
                   <Switch
                     id="enableTracking"
                     checked={settings.enableTracking}
-                    onCheckedChange={(checked) => handleInputChange("enableTracking", checked)}
+                    onCheckedChange={(checked) => updateSetting("enableTracking", checked)}
                   />
                   <Label htmlFor="enableTracking">Enable tracking and analytics</Label>
                 </div>
               </div>
 
-              <Button onClick={() => handleSave("SEO")} className="w-full md:w-auto">
-                <Save className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => handleSave("SEO")} 
+                className="w-full md:w-auto"
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save SEO Settings
               </Button>
             </CardContent>
@@ -267,7 +246,7 @@ export default function SettingsPage() {
                     <Switch
                       id="emailNotifications"
                       checked={settings.emailNotifications}
-                      onCheckedChange={(checked) => handleInputChange("emailNotifications", checked)}
+                      onCheckedChange={(checked) => updateSetting("emailNotifications", checked)}
                     />
                     <Label htmlFor="emailNotifications">Enable email notifications</Label>
                   </div>
@@ -275,7 +254,7 @@ export default function SettingsPage() {
                     <Switch
                       id="orderConfirmations"
                       checked={settings.orderConfirmations}
-                      onCheckedChange={(checked) => handleInputChange("orderConfirmations", checked)}
+                      onCheckedChange={(checked) => updateSetting("orderConfirmations", checked)}
                     />
                     <Label htmlFor="orderConfirmations">Send order confirmations</Label>
                   </div>
@@ -283,7 +262,7 @@ export default function SettingsPage() {
                     <Switch
                       id="marketingEmails"
                       checked={settings.marketingEmails}
-                      onCheckedChange={(checked) => handleInputChange("marketingEmails", checked)}
+                      onCheckedChange={(checked) => updateSetting("marketingEmails", checked)}
                     />
                     <Label htmlFor="marketingEmails">Send marketing emails</Label>
                   </div>
@@ -300,7 +279,7 @@ export default function SettingsPage() {
                     <Input
                       id="smtpHost"
                       value={settings.smtpHost}
-                      onChange={(e) => handleInputChange("smtpHost", e.target.value)}
+                      onChange={(e) => updateSetting("smtpHost", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -308,7 +287,7 @@ export default function SettingsPage() {
                     <Input
                       id="smtpPort"
                       value={settings.smtpPort}
-                      onChange={(e) => handleInputChange("smtpPort", e.target.value)}
+                      onChange={(e) => updateSetting("smtpPort", e.target.value)}
                     />
                   </div>
                 </div>
@@ -318,7 +297,7 @@ export default function SettingsPage() {
                     <Input
                       id="smtpUsername"
                       value={settings.smtpUsername}
-                      onChange={(e) => handleInputChange("smtpUsername", e.target.value)}
+                      onChange={(e) => updateSetting("smtpUsername", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -327,14 +306,22 @@ export default function SettingsPage() {
                       id="smtpPassword"
                       type="password"
                       value={settings.smtpPassword}
-                      onChange={(e) => handleInputChange("smtpPassword", e.target.value)}
+                      onChange={(e) => updateSetting("smtpPassword", e.target.value)}
                     />
                   </div>
                 </div>
               </div>
 
-              <Button onClick={() => handleSave("Email")} className="w-full md:w-auto">
-                <Save className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => handleSave("Email")} 
+                className="w-full md:w-auto"
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Email Settings
               </Button>
             </CardContent>
@@ -351,7 +338,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select value={settings.currency} onValueChange={(value) => handleInputChange("currency", value)}>
+                  <Select value={settings.currency} onValueChange={(value) => updateSetting("currency", value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -368,7 +355,7 @@ export default function SettingsPage() {
                   <Input
                     id="taxRate"
                     value={settings.taxRate}
-                    onChange={(e) => handleInputChange("taxRate", e.target.value)}
+                    onChange={(e) => updateSetting("taxRate", e.target.value)}
                   />
                 </div>
               </div>
@@ -379,7 +366,7 @@ export default function SettingsPage() {
                   <Input
                     id="shippingRate"
                     value={settings.shippingRate}
-                    onChange={(e) => handleInputChange("shippingRate", e.target.value)}
+                    onChange={(e) => updateSetting("shippingRate", e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -387,7 +374,7 @@ export default function SettingsPage() {
                   <Input
                     id="freeShippingThreshold"
                     value={settings.freeShippingThreshold}
-                    onChange={(e) => handleInputChange("freeShippingThreshold", e.target.value)}
+                    onChange={(e) => updateSetting("freeShippingThreshold", e.target.value)}
                   />
                 </div>
               </div>
@@ -426,8 +413,16 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button onClick={() => handleSave("Payment")} className="w-full md:w-auto">
-                <Save className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => handleSave("Payment")} 
+                className="w-full md:w-auto"
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Payment Settings
               </Button>
             </CardContent>
@@ -449,12 +444,12 @@ export default function SettingsPage() {
                       id="primaryColor"
                       type="color"
                       value={settings.primaryColor}
-                      onChange={(e) => handleInputChange("primaryColor", e.target.value)}
+                      onChange={(e) => updateSetting("primaryColor", e.target.value)}
                       className="w-16 h-10"
                     />
                     <Input
                       value={settings.primaryColor}
-                      onChange={(e) => handleInputChange("primaryColor", e.target.value)}
+                      onChange={(e) => updateSetting("primaryColor", e.target.value)}
                       className="flex-1"
                     />
                   </div>
@@ -466,12 +461,12 @@ export default function SettingsPage() {
                       id="secondaryColor"
                       type="color"
                       value={settings.secondaryColor}
-                      onChange={(e) => handleInputChange("secondaryColor", e.target.value)}
+                      onChange={(e) => updateSetting("secondaryColor", e.target.value)}
                       className="w-16 h-10"
                     />
                     <Input
                       value={settings.secondaryColor}
-                      onChange={(e) => handleInputChange("secondaryColor", e.target.value)}
+                      onChange={(e) => updateSetting("secondaryColor", e.target.value)}
                       className="flex-1"
                     />
                   </div>
@@ -483,12 +478,12 @@ export default function SettingsPage() {
                       id="accentColor"
                       type="color"
                       value={settings.accentColor}
-                      onChange={(e) => handleInputChange("accentColor", e.target.value)}
+                      onChange={(e) => updateSetting("accentColor", e.target.value)}
                       className="w-16 h-10"
                     />
                     <Input
                       value={settings.accentColor}
-                      onChange={(e) => handleInputChange("accentColor", e.target.value)}
+                      onChange={(e) => updateSetting("accentColor", e.target.value)}
                       className="flex-1"
                     />
                   </div>
@@ -499,7 +494,7 @@ export default function SettingsPage() {
                 <Switch
                   id="darkMode"
                   checked={settings.darkMode}
-                  onCheckedChange={(checked) => handleInputChange("darkMode", checked)}
+                  onCheckedChange={(checked) => updateSetting("darkMode", checked)}
                 />
                 <Label htmlFor="darkMode">Enable dark mode</Label>
               </div>
@@ -530,8 +525,16 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button onClick={() => handleSave("Theme")} className="w-full md:w-auto">
-                <Save className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => handleSave("Theme")} 
+                className="w-full md:w-auto"
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Theme Settings
               </Button>
             </CardContent>
@@ -550,7 +553,7 @@ export default function SettingsPage() {
                   <Switch
                     id="twoFactorAuth"
                     checked={settings.twoFactorAuth}
-                    onCheckedChange={(checked) => handleInputChange("twoFactorAuth", checked)}
+                    onCheckedChange={(checked) => updateSetting("twoFactorAuth", checked)}
                   />
                   <Label htmlFor="twoFactorAuth">Enable two-factor authentication</Label>
                 </div>
@@ -559,7 +562,7 @@ export default function SettingsPage() {
                   <Switch
                     id="passwordRequirements"
                     checked={settings.passwordRequirements}
-                    onCheckedChange={(checked) => handleInputChange("passwordRequirements", checked)}
+                    onCheckedChange={(checked) => updateSetting("passwordRequirements", checked)}
                   />
                   <Label htmlFor="passwordRequirements">Enforce strong password requirements</Label>
                 </div>
@@ -569,7 +572,7 @@ export default function SettingsPage() {
                 <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
                 <Select
                   value={settings.sessionTimeout}
-                  onValueChange={(value) => handleInputChange("sessionTimeout", value)}
+                  onValueChange={(value) => updateSetting("sessionTimeout", value)}
                 >
                   <SelectTrigger className="w-48">
                     <SelectValue />
@@ -610,8 +613,16 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button onClick={() => handleSave("Security")} className="w-full md:w-auto">
-                <Save className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => handleSave("Security")} 
+                className="w-full md:w-auto"
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Security Settings
               </Button>
             </CardContent>

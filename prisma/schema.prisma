@@ -1,10 +1,3 @@
-// prisma\schema.prisma
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,6 +5,211 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default("singleton")
+  email     String     @unique
+  name      String
+  password  String
+  role      Role       @default(ADMIN)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  cart      Cart?
+  wishlists Wishlist[]
+}
+
+model Product {
+  id            String           @id @default(cuid())
+  name          String
+  description   String
+  price         Float
+  originalPrice Float?
+  category      String
+  stock         Int
+  status        ProductStatus    @default(ACTIVE)
+  rating        Float?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  cartItems     CartItem[]
+  landingPages  LandingPage[]
+  orderItems    OrderItem[]
+  images        ProductImage[]
+  ProductPage   ProductPage?
+  variants      ProductVariant[]
+  wishlists     Wishlist[]
+}
+
+model ProductImage {
+  id        String          @id @default(cuid())
+  url       String
+  alt       String
+  isPrimary Boolean         @default(false)
+  productId String
+  variantId String?
+  product   Product         @relation(fields: [productId], references: [id])
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model ProductVariant {
+  id            String         @id @default(cuid())
+  name          String
+  type          VariantType
+  value         String
+  description   String?
+  variantPrice  Float?
+  stockQuantity Int
+  productId     String
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  images        ProductImage[]
+  product       Product        @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  customerName    String
+  total           Float
+  status          OrderStatus @default(PENDING)
+  shippingAddress String
+  orderDate       DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  customerPhone   String
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id          String          @id @default(cuid())
+  orderId     String
+  productId   String
+  variantId   String?
+  quantity    Int
+  price       Float
+  productName String
+  order       Order           @relation(fields: [orderId], references: [id])
+  product     Product         @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model LandingPageTemplate {
+  id          String                       @id @default(cuid())
+  name        String
+  description String?
+  thumbnail   String?
+  isDefault   Boolean                      @default(false)
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+  pages       LandingPage[]
+  sections    LandingPageTemplateSection[]
+}
+
+model LandingPageTemplateSection {
+  id              String                 @id @default(cuid())
+  templateId      String
+  type            LandingPageSectionType
+  title           String?
+  content         String?
+  image           String?
+  settings        Json?
+  order           Int
+  backgroundColor String?
+  borderRadius    String?
+  customCSS       String?
+  isVisible       Boolean                @default(true)
+  margin          String?
+  padding         String?
+  textColor       String?
+  template        LandingPageTemplate    @relation(fields: [templateId], references: [id])
+}
+
+model LandingPage {
+  id          String               @id @default(cuid())
+  title       String
+  slug        String               @unique
+  productId   String
+  templateId  String?
+  headline    String?
+  subheadline String?
+  description String?
+  heroImage   String?
+  status      LandingPageStatus    @default(DRAFT)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  product     Product              @relation(fields: [productId], references: [id])
+  template    LandingPageTemplate? @relation(fields: [templateId], references: [id])
+  sections    LandingPageSection[]
+}
+
+model LandingPageSection {
+  id              String                 @id @default(cuid())
+  landingPageId   String
+  type            LandingPageSectionType
+  title           String?
+  content         String?
+  image           String?
+  settings        Json?
+  order           Int
+  backgroundColor String?
+  borderRadius    String?
+  customCSS       String?
+  isVisible       Boolean                @default(true)
+  margin          String?
+  padding         String?
+  textColor       String?
+  landingPage     LandingPage            @relation(fields: [landingPageId], references: [id])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String          @id @default(cuid())
+  cartId    String
+  productId String
+  variantId String?
+  quantity  Int
+  cart      Cart            @relation(fields: [cartId], references: [id])
+  product   Product         @relation(fields: [productId], references: [id])
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ProductPage {
+  id              String            @id @default(cuid())
+  productId       String            @unique
+  title           String
+  slug            String            @unique
+  metaTitle       String
+  metaDescription String
+  content         String
+  featuredImage   String
+  status          ProductPageStatus
+  seoScore        Int
+  lastModified    DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  product         Product           @relation(fields: [productId], references: [id])
+}
+
+model AppSettings {
+  id        String   @id @default("singleton")
+  payload   Json
+  updatedAt DateTime @updatedAt
 }
 
 enum Role {
@@ -56,207 +254,6 @@ enum LandingPageSectionType {
   TEXT
   IMAGE
   GALLERY
-}
-
-model User {
-  id        String   @id @default("singleton") // enforce singleton ID
-  email     String   @unique // unique email for admin
-  name      String
-  password  String
-  role      Role     @default(ADMIN) // default role is ADMIN
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  cart      Cart?
-  wishlists Wishlist[]
-}
-
-model Product {
-  id            String        @id @default(cuid())
-  name          String
-  description   String
-  price         Float
-  originalPrice Float
-  category      String
-  stock         Int
-  status        ProductStatus @default(ACTIVE)
-  rating        Float?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  images       ProductImage[]
-  variants     ProductVariant[]
-  landingPages LandingPage[]
-  orderItems   OrderItem[]
-  wishlists    Wishlist[]
-  cartItems    CartItem[]
-  ProductPage  ProductPage?
-}
-
-model ProductImage {
-  id        String          @id @default(cuid())
-  url       String
-  alt       String
-  isPrimary Boolean         @default(false)
-  product   Product         @relation(fields: [productId], references: [id])
-  productId String
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
-  variantId String?
-}
-
-model ProductVariant {
-  id            String      @id @default(cuid())
-  name          String
-  type          VariantType
-  value         String
-  description   String?
-  variantPrice  Float?
-  stockQuantity Int
-  product       Product     @relation(fields: [productId], references: [id])
-  productId     String
-
-  images     ProductImage[]
-  orderItems OrderItem[]
-  cartItems  CartItem[]
-}
-
-model Order {
-  id              String      @id @default(cuid())
-  customerName    String
-  customerEmail   String
-  total           Float
-  status          OrderStatus @default(PENDING)
-  shippingAddress String
-  orderDate       DateTime    @default(now())
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  items OrderItem[]
-}
-
-model OrderItem {
-  id          String          @id @default(cuid())
-  order       Order           @relation(fields: [orderId], references: [id])
-  orderId     String
-  product     Product         @relation(fields: [productId], references: [id])
-  productId   String
-  variant     ProductVariant? @relation(fields: [variantId], references: [id])
-  variantId   String?
-  quantity    Int
-  price       Float
-  productName String
-}
-
-model LandingPageTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  thumbnail   String?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  sections LandingPageTemplateSection[]
-  pages    LandingPage[]
-}
-
-model LandingPageTemplateSection {
-  id         String                 @id @default(cuid())
-  template   LandingPageTemplate    @relation(fields: [templateId], references: [id])
-  templateId String
-  type       LandingPageSectionType
-  title      String?
-  content    String?
-  image      String?
-  settings   Json?
-  order      Int
-}
-
-model LandingPage {
-  id        String  @id @default(cuid())
-  title     String
-  slug      String  @unique
-  product   Product @relation(fields: [productId], references: [id])
-  productId String
-
-  // 🔁 Make template optional
-  template   LandingPageTemplate? @relation(fields: [templateId], references: [id])
-  templateId String?
-
-  headline    String?
-  subheadline String?
-  description String?
-  heroImage   String?
-  status      LandingPageStatus @default(DRAFT)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  sections LandingPageSection[]
-}
-
-model LandingPageSection {
-  id            String                 @id @default(cuid())
-  landingPage   LandingPage            @relation(fields: [landingPageId], references: [id])
-  landingPageId String
-  type          LandingPageSectionType
-  title         String?
-  content       String?
-  image         String?
-  settings      Json?
-  order         Int
-}
-
-model Cart {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  items CartItem[]
-}
-
-model CartItem {
-  id        String          @id @default(cuid())
-  cart      Cart            @relation(fields: [cartId], references: [id])
-  cartId    String
-  product   Product         @relation(fields: [productId], references: [id])
-  productId String
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
-  variantId String?
-  quantity  Int
-}
-
-model Wishlist {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  product   Product  @relation(fields: [productId], references: [id])
-  productId String
-  createdAt DateTime @default(now())
-}
-
-model ProductPage {
-  id        String  @id @default(cuid())
-  product   Product @relation(fields: [productId], references: [id])
-  productId String  @unique
-  title     String
-  slug      String  @unique
-
-  metaTitle       String
-  metaDescription String
-  content         String
-  featuredImage   String
-  status          ProductPageStatus
-  seoScore        Int
-  lastModified    DateTime
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model AppSettings {
-  id        String   @id @default("singleton")
-  payload   Json
-  updatedAt DateTime @updatedAt
+  CALL_TO_ORDER
+  FULL_IMAGE
 }

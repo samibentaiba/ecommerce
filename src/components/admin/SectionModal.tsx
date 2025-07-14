@@ -28,7 +28,7 @@ const SectionModal: React.FC<SectionModalProps> = ({ onAddSection }) => {
   const handleSubmit = () => {
     if (selectedType && sectionName) {
       onAddSection(
-        sectionTypes.find(t => t.id === selectedType)?.name || selectedType,
+        selectedType,
         sectionName,
         sectionDescription
       );

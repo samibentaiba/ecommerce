@@ -127,7 +127,7 @@ export default function OrdersPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Quick Order Lookup</CardTitle>
-                <CardDescription>Enter your order number or email to track your order</CardDescription>
+                <CardDescription>Enter your order number or phone number to track your order</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -140,8 +140,8 @@ export default function OrdersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" placeholder="your@email.com" />
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input id="phone" type="tel" placeholder="+1-555-0101" />
                 </div>
                 <Button className="w-full">
                   <Search className="mr-2 h-4 w-4" />

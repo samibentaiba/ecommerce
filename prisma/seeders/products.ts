@@ -5,6 +5,7 @@ import { ProductStatus, VariantType } from '@prisma/client'
 import { loadCSV, safeCreate } from '../utils/handler'
 
 type ProductRow = {
+  id: string
   name: string
   description: string
   price: string
@@ -21,55 +22,70 @@ type ProductRow = {
   variant_value?: string
   variant_description?: string
   variant_stock?: string
+  variant_price?: string
 }
 
 export default async function seedProducts() {
   const rows = await loadCSV<ProductRow>('products.csv')
 
+  // Group rows by product name to handle multiple variants
+  const productGroups = new Map<string, ProductRow[]>()
+  
   for (const row of rows) {
-    await safeCreate(`product "${row.name}"`, async () => {
+    const key = row.name
+    if (!productGroups.has(key)) {
+      productGroups.set(key, [])
+    }
+    productGroups.get(key)!.push(row)
+  }
+
+  for (const [productName, productRows] of productGroups) {
+    const baseRow = productRows[0] // Use first row for base product data
+    
+    await safeCreate(`product "${productName}"`, async () => {
+      // Collect all variants for this product
+      const variants = productRows
+        .filter(row => row.variant_name && row.variant_type && row.variant_value)
+        .map(row => ({
+          name: row.variant_name!,
+          type: row.variant_type!.toUpperCase() as VariantType,
+          value: row.variant_value!,
+          description: row.variant_description || undefined,
+          stockQuantity: row.variant_stock ? parseInt(row.variant_stock, 10) : 0,
+          variantPrice: row.variant_price ? parseFloat(row.variant_price) : undefined,
+        }))
+
+      // Collect all images for this product
+      const images = productRows
+        .filter(row => row.image_url)
+        .map(row => ({
+          url: row.image_url!,
+          alt: row.image_alt || row.name,
+          isPrimary: row.is_primary === 'true',
+        }))
+
       return prisma.product.create({
         data: {
-          name: row.name,
-          description: row.description,
-          price: parseFloat(row.price),
-          originalPrice: parseFloat(row.originalPrice),
-          category: row.category,
-          stock: parseInt(row.stock, 10),
-          status: row.status.toUpperCase() as ProductStatus,
-          rating: row.rating ? parseFloat(row.rating) : undefined,
+          id: baseRow.id,
+          name: baseRow.name,
+          description: baseRow.description,
+          price: parseFloat(baseRow.price),
+          originalPrice: parseFloat(baseRow.originalPrice),
+          category: baseRow.category,
+          stock: parseInt(baseRow.stock, 10),
+          status: baseRow.status.toUpperCase() as ProductStatus,
+          rating: baseRow.rating ? parseFloat(baseRow.rating) : undefined,
 
-          images: row.image_url
-            ? {
-              create: [
-                {
-                  url: row.image_url,
-                  alt: row.image_alt || row.name,
-                  isPrimary: row.is_primary === 'true',
-                },
-              ],
-            }
-            : undefined,
+          images: images.length > 0 ? {
+            create: images,
+          } : undefined,
 
-          variants:
-            row.variant_name && row.variant_type && row.variant_value
-              ? {
-                create: [
-                  {
-                    name: row.variant_name,
-                    type: row.variant_type.toUpperCase() as VariantType,
-                    value: row.variant_value,
-                    description: row.variant_description,
-                    stockQuantity: row.variant_stock
-                      ? parseInt(row.variant_stock, 10)
-                      : 0,
-                  },
-                ],
-              }
-              : undefined,
+          variants: variants.length > 0 ? {
+            create: variants,
+          } : undefined,
         },
       })
-    }, row)
+    }, baseRow)
   }
 }
 

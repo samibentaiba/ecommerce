@@ -1,2 +1,19 @@
 id,templateId,type,title,content,image,settings,order
-hero-1,1,HERO,Hero Section,"Main headline and description","/placeholder.svg","{""bgColor"":""white""}",1
+hero-1,modern-hero-template,HERO,Hero Section,"Main headline and description","/placeholder.svg","{""bgColor"":""white""}",1
+features-1,modern-hero-template,FEATURES,Key Features,"Product features and benefits","/placeholder.svg","{""columns"":3}",2
+testimonials-1,modern-hero-template,TESTIMONIALS,Customer Reviews,"What our customers say","/placeholder.svg","{""showRating"":true}",3
+cta-1,modern-hero-template,CTA,Call to Action,"Get started today","/placeholder.svg","{""buttonText"":""Shop Now""}",4
+hero-2,product-showcase-template,HERO,Product Hero,"Showcase your product","/placeholder.svg","{""bgColor"":""gradient""}",1
+gallery-2,product-showcase-template,GALLERY,Product Gallery,"Multiple product images","/placeholder.svg","{""columns"":4}",2
+features-2,product-showcase-template,FEATURES,Product Features,"Detailed feature list","/placeholder.svg","{""columns"":2}",3
+testimonials-2,product-showcase-template,TESTIMONIALS,Reviews,"Customer testimonials","/placeholder.svg","{""showRating"":true}",4
+cta-2,product-showcase-template,CTA,Shop Now,"Purchase your product","/placeholder.svg","{""buttonText"":""Buy Now""}",5
+hero-3,minimalist-template,HERO,Simple Hero,"Clean and minimal","/placeholder.svg","{""bgColor"":""white"",""minimal"":true}",1
+text-3,minimalist-template,TEXT,Product Description,"Simple product description","/placeholder.svg","{""centered"":true}",2
+cta-3,minimalist-template,CTA,Get Started,"Simple call to action","/placeholder.svg","{""buttonText"":""Learn More""}",3
+hero-4,feature-rich-template,HERO,Comprehensive Hero,"Full-featured hero section","/placeholder.svg","{""bgColor"":""gradient"",""showVideo"":true}",1
+features-4,feature-rich-template,FEATURES,Comprehensive Features,"Detailed feature breakdown","/placeholder.svg","{""columns"":3,""showIcons"":true}",2
+gallery-4,feature-rich-template,GALLERY,Product Images,"High-quality product photos","/placeholder.svg","{""columns"":3,""lightbox"":true}",3
+testimonials-4,feature-rich-template,TESTIMONIALS,Customer Feedback,"Detailed customer reviews","/placeholder.svg","{""showRating"":true,""showPhotos"":true}",4
+text-4,feature-rich-template,TEXT,Detailed Information,"Comprehensive product information","/placeholder.svg","{""twoColumns"":true}",5
+cta-4,feature-rich-template,CTA,Final CTA,"Strong call to action","/placeholder.svg","{""buttonText"":""Shop Now"",""secondaryButton"":""Learn More""}",6

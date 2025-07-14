@@ -1,4 +1,0 @@
-id,templateId,type,title,content,image,settings,order
-hero-1,1,hero,Hero Section,"Main headline and description","/placeholder.svg","{""bgColor"":""white""}",1
-features-1,1,features,Features Section,"Feature list",,"{}",2
-cta-1,1,cta,Call to Action,"Get started today",,"{}",3

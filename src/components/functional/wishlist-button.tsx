@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -12,6 +12,14 @@ interface WishlistButtonProps {
   variant?: "default" | "outline" | "ghost"
   size?: "default" | "sm" | "lg" | "icon"
   className?: string
+}
+
+interface WishlistItem {
+  id: number
+  name: string
+  price?: number
+  image?: string
+  addedAt: string
 }
 
 export function WishlistButton({
@@ -25,18 +33,63 @@ export function WishlistButton({
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
+  // Check if item is in wishlist on mount
+  useEffect(() => {
+    const wishlist = getWishlistFromStorage()
+    setIsInWishlist(wishlist.some(item => item.id === productId))
+  }, [productId])
+
+  const getWishlistFromStorage = (): WishlistItem[] => {
+    if (typeof window === 'undefined') return []
+    const stored = localStorage.getItem('wishlist')
+    return stored ? JSON.parse(stored) : []
+  }
+
+  const saveWishlistToStorage = (wishlist: WishlistItem[]) => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('wishlist', JSON.stringify(wishlist))
+  }
+
   const toggleWishlist = async () => {
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsInWishlist(!isInWishlist)
+    try {
+      const wishlist = getWishlistFromStorage()
+      
+      if (isInWishlist) {
+        // Remove from wishlist
+        const updatedWishlist = wishlist.filter(item => item.id !== productId)
+        saveWishlistToStorage(updatedWishlist)
+        setIsInWishlist(false)
+        toast({
+          title: "Removed from Wishlist",
+          description: `${productName} has been removed from your wishlist.`,
+        })
+      } else {
+        // Add to wishlist
+        const newItem: WishlistItem = {
+          id: productId,
+          name: productName,
+          addedAt: new Date().toISOString(),
+        }
+        const updatedWishlist = [...wishlist, newItem]
+        saveWishlistToStorage(updatedWishlist)
+        setIsInWishlist(true)
+        toast({
+          title: "Added to Wishlist",
+          description: `${productName} has been added to your wishlist.`,
+        })
+      }
+    } catch (error) {
+      console.error('Error updating wishlist:', error)
       toast({
-        title: isInWishlist ? "Removed from Wishlist" : "Added to Wishlist",
-        description: `${productName} ${isInWishlist ? "removed from" : "added to"} your wishlist.`,
+        title: "Error",
+        description: "Failed to update wishlist. Please try again.",
+        variant: "destructive",
       })
+    } finally {
       setIsLoading(false)
-    }, 500)
+    }
   }
 
   return (
