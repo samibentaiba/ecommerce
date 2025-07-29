@@ -1,4 +1,23 @@
-export interface Product {
+export type ProductImage = {
+  id: string;
+  image: ArrayBuffer; // Binary image data
+  mimeType: string; // To serve correct Content-Type
+  alt: string;
+  isPrimary: boolean;
+};
+
+export type ProductVariant = {
+  id: string;
+  name: string;
+  type: "COLOR" | "SIZE" | "FEATURE";
+  value: string;
+  description?: string;
+  variantPrice?: number;
+  stockQuantity: number;
+  images: ProductImage[];
+};
+
+export type Product = {
   id: string;
   name: string;
   description: string;
@@ -7,33 +26,10 @@ export interface Product {
   category: string;
   stock: number;
   status: "ACTIVE" | "INACTIVE";
-  image?: string;
-  images?: ProductImage[];
   rating?: number;
-  reviews?: number;
-  features?: string[];
-  specifications?: Record<string, string>;
-  variants?: ProductVariant[];
-}
-
-export interface ProductImage {
-  id: string;
-  url: string;
-  alt: string;
-  isPrimary: boolean;
-  variantId?: string;
-}
-
-export interface ProductVariant {
-  id: string;
-  name: string;
-  type: "COLOR" | "SIZE" | "FEATURE";
-  value: string;
-  description?: string;
   images: ProductImage[];
-  variantPrice?: number;
-  stockQuantity: number;
-}
+  variants: ProductVariant[];
+};
 
 export interface Order {
   id: string;

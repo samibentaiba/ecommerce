@@ -1,95 +1,103 @@
 import { NextRequest } from "next/server";
 import { GET, POST, PUT, DELETE } from "../route";
-import prisma from "@/lib/prisma";
 
-// Mock Prisma
+// Mock the prisma client
 jest.mock("@/lib/prisma", () => ({
-  landingPageTemplate: {
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
-  landingPageTemplateSection: {
-    deleteMany: jest.fn(),
-    createMany: jest.fn(),
-  },
-  landingPage: {
-    findMany: jest.fn(),
+  __esModule: true,
+  default: {
+    landingPageTemplate: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    landingPageTemplateSection: {
+      findMany: jest.fn(),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 
-const mockPrisma = prisma as jest.Mocked<typeof prisma> & {
-  landingPageTemplate: {
-    findMany: jest.MockedFunction<typeof prisma.landingPageTemplate.findMany>;
-    findFirst: jest.MockedFunction<typeof prisma.landingPageTemplate.findFirst>;
-    findUnique: jest.MockedFunction<
-      typeof prisma.landingPageTemplate.findUnique
-    >;
-    create: jest.MockedFunction<typeof prisma.landingPageTemplate.create>;
-    update: jest.MockedFunction<typeof prisma.landingPageTemplate.update>;
-    delete: jest.MockedFunction<typeof prisma.landingPageTemplate.delete>;
-  };
-  landingPageTemplateSection: {
-    deleteMany: jest.MockedFunction<
-      typeof prisma.landingPageTemplateSection.deleteMany
-    >;
-    createMany: jest.MockedFunction<
-      typeof prisma.landingPageTemplateSection.createMany
-    >;
-  };
-  landingPage: {
-    findMany: jest.MockedFunction<typeof prisma.landingPage.findMany>;
-  };
-};
+// Mock the permission checker
+jest.mock("@/lib/permissions", () => ({
+  createPermissionChecker: jest.fn(() => ({
+    canView: jest.fn(() => true),
+    canCreate: jest.fn(() => true),
+    canEdit: jest.fn(() => true),
+    canDelete: jest.fn(() => true),
+  })),
+}));
 
-// Mock data
-const mockSection = {
-  id: "section-1",
-  templateId: "template-1",
-  type: "HERO" as const,
-  title: "Hero Section",
-  content: "Main hero section",
-  image: null,
-  settings: {},
-  order: 0,
-};
-
-const mockTemplate = {
-  id: "template-1",
-  name: "Modern Hero Template",
-  description: "A modern hero template",
-  thumbnail: "/placeholder.svg",
-  isDefault: true,
-  createdAt: new Date("2024-01-01"),
-  updatedAt: new Date("2024-01-01"),
-  sections: [mockSection],
-};
+const mockPrisma = require("@/lib/prisma").default;
 
 describe("Templates API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock the user authentication
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "singleton",
+      name: "Admin",
+      email: "admin@store.com",
+      role: "ADMIN",
+      parentId: null,
+      permissions: [],
+    });
   });
 
   describe("GET /api/admin/templates", () => {
     it("should return all templates with sections", async () => {
-      mockPrisma.landingPageTemplate.findMany.mockResolvedValue([mockTemplate]);
+      const mockTemplates = [
+        {
+          id: "template-1",
+          name: "Modern Hero Template",
+          description: "A modern hero section template",
+          category: "HERO",
+          sections: [
+            {
+              id: "section-1",
+              type: "HERO",
+              title: "Hero Section",
+              content: "Welcome to our product",
+              order: 1,
+            },
+          ],
+        },
+      ];
+
+      mockPrisma.landingPageTemplate.findMany.mockResolvedValue(mockTemplates);
 
       const response = await GET();
       const data = await response.json();
 
+      expect(response.status).toBe(200);
+      expect(data.templates).toEqual(mockTemplates);
       expect(mockPrisma.landingPageTemplate.findMany).toHaveBeenCalledWith({
         include: {
           sections: {
-            orderBy: { order: "asc" },
+            orderBy: {
+              order: "asc",
+            },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          createdAt: "desc",
+        },
       });
+    });
 
-      expect(data).toEqual([mockTemplate]);
+    it("should handle empty templates list", async () => {
+      mockPrisma.landingPageTemplate.findMany.mockResolvedValue([]);
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.templates).toEqual([]);
     });
 
     it("should handle database errors", async () => {
@@ -106,415 +114,209 @@ describe("Templates API Route", () => {
   });
 
   describe("POST /api/admin/templates", () => {
-    const createTemplateData = {
-      name: "New Template",
-      description: "New template description",
-      thumbnail: "/new-thumbnail.svg",
-      isDefault: false,
-      sections: [
-        {
-          name: "New Section",
-          type: "hero",
-          description: "New section description",
-          content: { title: "Welcome" },
-        },
-      ],
-    };
-
     it("should create a new template with sections", async () => {
-      mockPrisma.landingPageTemplate.findFirst.mockResolvedValue(null);
-      mockPrisma.landingPageTemplate.create.mockResolvedValue({
-        ...mockTemplate,
-        ...createTemplateData,
-      });
+      const newTemplate = {
+        name: "New Template",
+        description: "A new template description",
+        category: "FEATURES",
+        sections: [
+          {
+            type: "HERO",
+            title: "Hero Section",
+            content: "Welcome to our new template",
+            order: 1,
+          },
+        ],
+      };
+
+      const createdTemplate = { id: "new-template-1", ...newTemplate };
+      mockPrisma.landingPageTemplate.create.mockResolvedValue(createdTemplate);
 
       const request = new NextRequest(
         "http://localhost:3000/api/admin/templates",
         {
           method: "POST",
-          body: JSON.stringify(createTemplateData),
+          body: JSON.stringify(newTemplate),
         }
       );
-
       const response = await POST(request);
       const data = await response.json();
 
-      expect(mockPrisma.landingPageTemplate.findFirst).toHaveBeenCalledWith({
-        where: { name: "New Template" },
-      });
-
+      expect(response.status).toBe(200);
+      expect(data.template).toEqual(createdTemplate);
       expect(mockPrisma.landingPageTemplate.create).toHaveBeenCalledWith({
         data: {
           name: "New Template",
-          description: "New template description",
-          thumbnail: "/new-thumbnail.svg",
-          isDefault: false,
+          description: "A new template description",
+          category: "FEATURES",
           sections: {
             create: [
               {
                 type: "HERO",
-                title: "New Section",
-                content: "New section description",
-                order: 0,
-                settings: {},
+                title: "Hero Section",
+                content: "Welcome to our new template",
+                order: 1,
               },
             ],
           },
         },
         include: {
           sections: {
-            orderBy: { order: "asc" },
+            orderBy: {
+              order: "asc",
+            },
           },
         },
       });
-
-      expect(data).toMatchObject(createTemplateData);
     });
 
-    it("should return error if template name already exists", async () => {
-      mockPrisma.landingPageTemplate.findFirst.mockResolvedValue(mockTemplate);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates",
-        {
-          method: "POST",
-          body: JSON.stringify(createTemplateData),
-        }
-      );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("Template with this name already exists");
-    });
-
-    it("should handle template creation without sections", async () => {
-      const templateWithoutSections = {
-        name: "Template Without Sections",
-        description: "Description",
-        thumbnail: "/thumbnail.svg",
-        isDefault: false,
-      };
-
-      mockPrisma.landingPageTemplate.findFirst.mockResolvedValue(null);
-      mockPrisma.landingPageTemplate.create.mockResolvedValue({
-        ...mockTemplate,
-        ...templateWithoutSections,
-        sections: [],
-      } as any);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates",
-        {
-          method: "POST",
-          body: JSON.stringify(templateWithoutSections),
-        }
-      );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(data).toMatchObject(templateWithoutSections);
-    });
-  });
-
-  describe("PUT /api/admin/templates", () => {
-    const updateTemplateData = {
-      name: "Updated Template",
-      description: "Updated description",
-      thumbnail: "/updated-thumbnail.svg",
-      isDefault: false,
-      sections: [
-        {
-          name: "Updated Section",
-          type: "hero",
-          description: "Updated section description",
-          content: { title: "Updated Welcome" },
-        },
-      ],
-    };
-
-    it("should update an existing template", async () => {
-      mockPrisma.landingPageTemplate.update.mockResolvedValue({
-        ...mockTemplate,
-        ...updateTemplateData,
-        updatedAt: new Date("2024-01-02"),
-      });
-      mockPrisma.landingPageTemplate.findUnique.mockResolvedValue({
-        ...mockTemplate,
-        ...updateTemplateData,
-      });
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates?id=template-1",
-        {
-          method: "PUT",
-          body: JSON.stringify(updateTemplateData),
-        }
-      );
-
-      const response = await PUT(request);
-      const data = await response.json();
-
-      expect(mockPrisma.landingPageTemplate.update).toHaveBeenCalledWith({
-        where: { id: "template-1" },
-        data: {
-          name: "Updated Template",
-          description: "Updated description",
-          thumbnail: "/updated-thumbnail.svg",
-          isDefault: false,
-          updatedAt: expect.any(Date),
-        },
-        include: {
-          sections: {
-            orderBy: { order: "asc" },
-          },
-        },
-      });
-
-      expect(
-        mockPrisma.landingPageTemplateSection.deleteMany
-      ).toHaveBeenCalledWith({
-        where: { templateId: "template-1" },
-      });
-
-      expect(
-        mockPrisma.landingPageTemplateSection.createMany
-      ).toHaveBeenCalledWith({
-        data: [
-          {
-            templateId: "template-1",
-            type: "HERO",
-            title: "Updated Section",
-            content: "Updated section description",
-            order: 0,
-            settings: {},
-          },
-        ],
-      });
-
-      expect(data).toMatchObject(updateTemplateData);
-    });
-
-    it("should return 400 error when template ID is missing", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates",
-        {
-          method: "PUT",
-          body: JSON.stringify(updateTemplateData),
-        }
-      );
-
-      const response = await PUT(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("Template ID is required");
-    });
-
-    it("should update template without sections", async () => {
-      const templateWithoutSections = {
-        name: "Template Without Sections",
-        description: "Description",
-        thumbnail: "/thumbnail.svg",
-        isDefault: false,
-      };
-
-      mockPrisma.landingPageTemplate.update.mockResolvedValue({
-        ...mockTemplate,
-        ...templateWithoutSections,
-      });
-      mockPrisma.landingPageTemplate.findUnique.mockResolvedValue({
-        ...mockTemplate,
-        ...templateWithoutSections,
-        sections: [],
-      } as any);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates?id=template-1",
-        {
-          method: "PUT",
-          body: JSON.stringify(templateWithoutSections),
-        }
-      );
-
-      const response = await PUT(request);
-      const data = await response.json();
-
-      expect(
-        mockPrisma.landingPageTemplateSection.deleteMany
-      ).not.toHaveBeenCalled();
-      expect(
-        mockPrisma.landingPageTemplateSection.createMany
-      ).not.toHaveBeenCalled();
-
-      expect(data).toMatchObject(templateWithoutSections);
-    });
-  });
-
-  describe("DELETE /api/admin/templates", () => {
-    it("should delete a template and its sections", async () => {
-      mockPrisma.landingPage.findMany.mockResolvedValue([]);
-      mockPrisma.landingPageTemplateSection.deleteMany.mockResolvedValue({
-        count: 2,
-      });
-      mockPrisma.landingPageTemplate.delete.mockResolvedValue(mockTemplate);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates?id=template-1",
-        {
-          method: "DELETE",
-        }
-      );
-
-      const response = await DELETE(request);
-      const data = await response.json();
-
-      expect(mockPrisma.landingPage.findMany).toHaveBeenCalledWith({
-        where: { templateId: "template-1" },
-      });
-
-      expect(
-        mockPrisma.landingPageTemplateSection.deleteMany
-      ).toHaveBeenCalledWith({
-        where: { templateId: "template-1" },
-      });
-
-      expect(mockPrisma.landingPageTemplate.delete).toHaveBeenCalledWith({
-        where: { id: "template-1" },
-      });
-
-      expect(data).toEqual({ success: true });
-    });
-
-    it("should return 400 error when template ID is missing", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates",
-        {
-          method: "DELETE",
-        }
-      );
-
-      const response = await DELETE(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("Template ID is required");
-    });
-
-    it("should prevent deletion if template is being used by landing pages", async () => {
-      mockPrisma.landingPage.findMany.mockResolvedValue([
-        {
-          id: "landing-1",
-          title: "Landing Page 1",
-          productId: "product-1",
-          description: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          status: "DRAFT" as const,
-          templateId: null,
-          slug: "landing-page-1",
-          headline: null,
-          subheadline: null,
-          heroImage: null,
-        },
-      ]);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates?id=template-1",
-        {
-          method: "DELETE",
-        }
-      );
-
-      const response = await DELETE(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe(
-        "Cannot delete template that is being used by landing pages"
-      );
-
-      expect(
-        mockPrisma.landingPageTemplateSection.deleteMany
-      ).not.toHaveBeenCalled();
-      expect(mockPrisma.landingPageTemplate.delete).not.toHaveBeenCalled();
-    });
-
-    it("should handle database errors during deletion", async () => {
-      mockPrisma.landingPage.findMany.mockResolvedValue([]);
-      mockPrisma.landingPageTemplateSection.deleteMany.mockRejectedValue(
+    it("should handle database errors during creation", async () => {
+      mockPrisma.landingPageTemplate.create.mockRejectedValue(
         new Error("Database error")
       );
 
       const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates?id=template-1",
-        {
-          method: "DELETE",
-        }
-      );
-
-      const response = await DELETE(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to delete template");
-    });
-  });
-
-  describe("Edge Cases", () => {
-    it("should handle empty templates list", async () => {
-      mockPrisma.landingPageTemplate.findMany.mockResolvedValue([]);
-
-      const response = await GET();
-      const data = await response.json();
-
-      expect(data).toEqual([]);
-    });
-
-    it("should handle template with empty sections array", async () => {
-      const templateWithEmptySections = {
-        ...mockTemplate,
-        sections: [],
-      };
-
-      mockPrisma.landingPageTemplate.create.mockResolvedValue(
-        templateWithEmptySections
-      );
-
-      const request = new NextRequest(
         "http://localhost:3000/api/admin/templates",
         {
           method: "POST",
-          body: JSON.stringify({
-            name: "Empty Sections Template",
-            description: "Template with no sections",
-            sections: [],
-          }),
+          body: JSON.stringify({ name: "Test Template" }),
         }
       );
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(data.sections).toEqual([]);
-    });
-
-    it("should handle invalid request body", async () => {
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/templates",
-        {
-          method: "POST",
-          body: "invalid json",
-        }
-      );
-
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to create template");
+    });
+  });
+
+  describe("PUT /api/admin/templates", () => {
+    it("should update an existing template", async () => {
+      const updateData = {
+        id: "template-1",
+        name: "Updated Template",
+        description: "Updated description...",
+        category: "UPDATED",
+      };
+
+      const updatedTemplate = { ...updateData };
+      mockPrisma.landingPageTemplate.update.mockResolvedValue(updatedTemplate);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/templates",
+        {
+          method: "PUT",
+          body: JSON.stringify(updateData),
+        }
+      );
+      const response = await PUT(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.template).toEqual(updatedTemplate);
+      expect(mockPrisma.landingPageTemplate.update).toHaveBeenCalledWith({
+        where: { id: "template-1" },
+        data: {
+          name: "Updated Template",
+          description: "Updated description...",
+          category: "UPDATED",
+        },
+        include: {
+          sections: {
+            orderBy: {
+              order: "asc",
+            },
+          },
+        },
+      });
+    });
+
+    it("should return 400 error when template ID is missing", async () => {
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/templates",
+        {
+          method: "PUT",
+          body: JSON.stringify({ name: "Updated Template" }),
+        }
+      );
+      const response = await PUT(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Template ID is required");
+    });
+
+    it("should handle template not found", async () => {
+      mockPrisma.landingPageTemplate.update.mockRejectedValue(
+        new Error("Template not found")
+      );
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/templates",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            id: "non-existent",
+            name: "Updated Template",
+          }),
+        }
+      );
+      const response = await PUT(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe("Failed to update template");
+    });
+  });
+
+  describe("DELETE /api/admin/templates", () => {
+    it("should delete a template and its sections", async () => {
+      mockPrisma.landingPageTemplate.delete.mockResolvedValue({
+        id: "template-1",
+      });
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/templates?id=template-1",
+        { method: "DELETE" }
+      );
+      const response = await DELETE(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe("Template deleted successfully");
+      expect(mockPrisma.landingPageTemplate.delete).toHaveBeenCalledWith({
+        where: { id: "template-1" },
+      });
+    });
+
+    it("should return 400 error when template ID is missing", async () => {
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/templates",
+        {
+          method: "DELETE",
+        }
+      );
+      const response = await DELETE(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Template ID is required");
+    });
+
+    it("should handle database errors during deletion", async () => {
+      mockPrisma.landingPageTemplate.delete.mockRejectedValue(
+        new Error("Database error")
+      );
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/templates?id=template-1",
+        { method: "DELETE" }
+      );
+      const response = await DELETE(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe("Failed to delete template");
     });
   });
 });

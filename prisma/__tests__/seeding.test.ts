@@ -158,6 +158,83 @@ describe("Database Seeding Tests", () => {
       expect(result.variants).toHaveLength(0);
       expect(result.images).toHaveLength(0);
     });
+
+    it("should ensure only one primary image per product", async () => {
+      const mockProduct = {
+        id: "product-3",
+        name: "Product with Multiple Images",
+        description: "A product with multiple images",
+        price: 29.99,
+        originalPrice: 39.99,
+        category: "Electronics",
+        stock: 50,
+        status: "ACTIVE" as ProductStatus,
+        rating: 4.0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        variants: [],
+        images: [
+          {
+            id: "image-1",
+            alt: "Primary Image",
+            isPrimary: true,
+            productId: "product-3",
+            variantId: null,
+            image: Buffer.from("fake-image-1"),
+            mimeType: "image/jpeg",
+          },
+          {
+            id: "image-2",
+            alt: "Secondary Image",
+            isPrimary: false,
+            productId: "product-3",
+            variantId: null,
+            image: Buffer.from("fake-image-2"),
+            mimeType: "image/jpeg",
+          },
+        ],
+      };
+
+      mockPrisma.product.create.mockResolvedValue(mockProduct);
+
+      const result = await mockPrisma.product.create({
+        data: {
+          id: "product-3",
+          name: "Product with Multiple Images",
+          description: "A product with multiple images",
+          price: 29.99,
+          originalPrice: 39.99,
+          category: "Electronics",
+          stock: 50,
+          status: "ACTIVE",
+          rating: 4.0,
+          images: {
+            create: [
+              {
+                alt: "Primary Image",
+                isPrimary: true,
+                image: Buffer.from("fake-image-1"),
+                mimeType: "image/jpeg",
+              },
+              {
+                alt: "Secondary Image",
+                isPrimary: false,
+                image: Buffer.from("fake-image-2"),
+                mimeType: "image/jpeg",
+              },
+            ],
+          },
+        },
+        include: {
+          variants: true,
+          images: true,
+        },
+      });
+
+      const primaryImages = result.images.filter((img: any) => img.isPrimary);
+      expect(primaryImages).toHaveLength(1);
+      expect(primaryImages[0].alt).toBe("Primary Image");
+    });
   });
 
   describe("Order Seeding", () => {

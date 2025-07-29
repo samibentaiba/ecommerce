@@ -1,0 +1,2 @@
+-- AlterTable
+-- (No changes needed, column already exists)

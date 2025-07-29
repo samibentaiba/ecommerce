@@ -443,7 +443,7 @@ export default function SearchPage() {
                         }`}
                       >
                         <Image
-                          src={product.image || "/placeholder.svg"}
+                          src={product.images && product.images[0]?.id ? `/api/images/${product.images[0].id}` : "/placeholder.svg"}
                           alt={product.name}
                           width={300}
                           height={300}

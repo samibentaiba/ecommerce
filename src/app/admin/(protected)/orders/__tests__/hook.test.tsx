@@ -51,11 +51,36 @@ describe("useOrders", () => {
       },
     ];
 
-    // Set up specific mocks for both fetch calls
+    const mockApiResponse = {
+      orders: [
+        {
+          id: "1",
+          customerName: "John Doe",
+          customerPhone: "+1-555-0101",
+          total: 59.98,
+          status: "PENDING",
+          orderDate: "2024-01-01T00:00:00.000Z",
+          shippingAddress: "123 Main St",
+          items: [
+            {
+              id: "item-1",
+              productId: "product-1",
+              productName: "Product 1",
+              quantity: 2,
+              price: 29.99,
+              variantId: null,
+              product: { id: "product-1", name: "Product 1" },
+              variant: null,
+            },
+          ],
+        },
+      ],
+    };
+
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockOrders,
+        json: async () => mockApiResponse,
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -89,7 +114,7 @@ describe("useOrders", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       });
 
     const { result } = renderHook(() => useOrders());
@@ -190,10 +215,57 @@ describe("useOrders", () => {
       },
     ];
 
+    const mockApiResponse = {
+      orders: [
+        {
+          id: "1",
+          customerName: "John Doe",
+          customerPhone: "+1-555-0101",
+          total: 59.98,
+          status: "PENDING",
+          orderDate: "2024-01-01T00:00:00.000Z",
+          shippingAddress: "123 Main St",
+          items: [
+            {
+              id: "item-1",
+              productId: "product-1",
+              productName: "Product 1",
+              quantity: 2,
+              price: 29.99,
+              variantId: null,
+              product: { id: "product-1", name: "Product 1" },
+              variant: null,
+            },
+          ],
+        },
+        {
+          id: "2",
+          customerName: "Jane Smith",
+          customerPhone: "+1-555-0102",
+          total: 49.99,
+          status: "SHIPPED",
+          orderDate: "2024-01-02T00:00:00.000Z",
+          shippingAddress: "456 Oak Ave",
+          items: [
+            {
+              id: "item-2",
+              productId: "product-2",
+              productName: "Product 2",
+              quantity: 1,
+              price: 49.99,
+              variantId: null,
+              product: { id: "product-2", name: "Product 2" },
+              variant: null,
+            },
+          ],
+        },
+      ],
+    };
+
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockOrders,
+        json: async () => mockApiResponse,
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -238,10 +310,36 @@ describe("useOrders", () => {
       },
     ];
 
+    const mockApiResponse = {
+      orders: [
+        {
+          id: "1",
+          customerName: "John Doe",
+          customerPhone: "+1-555-0101",
+          total: 59.98,
+          status: "PENDING",
+          orderDate: "2024-01-01T00:00:00.000Z",
+          shippingAddress: "123 Main St",
+          items: [
+            {
+              id: "item-1",
+              productId: "product-1",
+              productName: "Product 1",
+              quantity: 2,
+              price: 29.99,
+              variantId: null,
+              product: { id: "product-1", name: "Product 1" },
+              variant: null,
+            },
+          ],
+        },
+      ],
+    };
+
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockOrders,
+        json: async () => mockApiResponse,
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -249,7 +347,7 @@ describe("useOrders", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ success: true }),
+        json: async () => ({ order: mockApiResponse.orders[0] }),
       });
 
     const { result } = renderHook(() => useOrders());
@@ -265,7 +363,14 @@ describe("useOrders", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/admin/orders?id=1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...mockOrders[0], status: "processing" }),
+      body: JSON.stringify({
+        customerName: "John Doe",
+        customerPhone: "+1-555-0101",
+        total: 59.98,
+        status: "PROCESSING",
+        orderDate: "2024-01-01T00:00:00.000Z",
+        shippingAddress: "123 Main St",
+      }),
     });
   });
 
@@ -288,20 +393,50 @@ describe("useOrders", () => {
         price: 29.99,
         variants: [],
       },
+      {
+        id: "2",
+        name: "Product 2",
+        price: 49.99,
+        variants: [],
+      },
     ];
+
+    const mockApiResponse = {
+      order: {
+        id: "2",
+        customerName: "Jane Smith",
+        customerPhone: "+1-555-0102",
+        total: 49.99,
+        status: "PENDING",
+        orderDate: "2024-01-02T00:00:00.000Z",
+        shippingAddress: "456 Oak Ave",
+        items: [
+          {
+            id: "item-2",
+            productId: "product-2",
+            productName: "Product 2",
+            quantity: 1,
+            price: 49.99,
+            variantId: null,
+            product: { id: "product-2", name: "Product 2" },
+            variant: null,
+          },
+        ],
+      },
+    };
 
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => [],
+        json: async () => ({ orders: [] }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => newOrder,
+        json: async () => mockApiResponse,
       });
 
     const { result } = renderHook(() => useOrders());
@@ -317,7 +452,25 @@ describe("useOrders", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/admin/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newOrder),
+      body: JSON.stringify({
+        customerName: "Jane Smith",
+        customerPhone: "+1-555-0102",
+        total: 49.99,
+        status: "PENDING",
+        orderDate: "2024-01-02T00:00:00.000Z",
+        shippingAddress: "456 Oak Ave",
+        items: {
+          create: [
+            {
+              productId: "2",
+              productName: "Product 2",
+              quantity: 1,
+              price: 49.99,
+              variantId: null,
+            },
+          ],
+        },
+      }),
     });
   });
 
@@ -346,18 +499,68 @@ describe("useOrders", () => {
       },
     ];
 
+    const mockApiResponse = {
+      orders: [
+        {
+          id: "1",
+          customerName: "John Doe",
+          customerPhone: "+1-555-0101",
+          total: 59.98,
+          status: "PENDING",
+          orderDate: "2024-01-01T00:00:00.000Z",
+          shippingAddress: "123 Main St",
+          items: [
+            {
+              id: "item-1",
+              productId: "product-1",
+              productName: "Product 1",
+              quantity: 2,
+              price: 29.99,
+              variantId: null,
+              product: { id: "product-1", name: "Product 1" },
+              variant: null,
+            },
+          ],
+        },
+      ],
+    };
+
+    const updatedApiResponse = {
+      order: {
+        id: "1",
+        customerName: "John Updated",
+        customerPhone: "+1-555-0101",
+        total: 59.98,
+        status: "PENDING",
+        orderDate: "2024-01-01T00:00:00.000Z",
+        shippingAddress: "123 Main St",
+        items: [
+          {
+            id: "item-1",
+            productId: "product-1",
+            productName: "Product 1",
+            quantity: 2,
+            price: 29.99,
+            variantId: null,
+            product: { id: "product-1", name: "Product 1" },
+            variant: null,
+          },
+        ],
+      },
+    };
+
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockOrders,
+        json: async () => mockApiResponse,
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedOrder,
+        json: async () => updatedApiResponse,
       });
 
     const { result } = renderHook(() => useOrders());
@@ -373,7 +576,14 @@ describe("useOrders", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/admin/orders?id=1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedOrder),
+      body: JSON.stringify({
+        customerName: "John Updated",
+        customerPhone: "+1-555-0101",
+        total: 59.98,
+        status: "PENDING",
+        orderDate: "2024-01-01T00:00:00.000Z",
+        shippingAddress: "123 Main St",
+      }),
     });
   });
 
@@ -407,7 +617,7 @@ describe("useOrders", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -685,17 +895,21 @@ describe("useOrders", () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => [],
+        json: async () => ({ orders: [] }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       });
 
     const { result } = renderHook(() => useOrders());
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.productsList).toEqual(mockProducts);
     });
 
     act(() => {
@@ -728,17 +942,21 @@ describe("useOrders", () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => [],
+        json: async () => ({ orders: [] }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       });
 
     const { result } = renderHook(() => useOrders());
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.productsList).toEqual(mockProducts);
     });
 
     act(() => {
@@ -766,17 +984,21 @@ describe("useOrders", () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => [],
+        json: async () => ({ orders: [] }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       });
 
     const { result } = renderHook(() => useOrders());
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.productsList).toEqual(mockProducts);
     });
 
     act(() => {
@@ -813,7 +1035,7 @@ describe("useOrders", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockProducts,
+        json: async () => ({ products: mockProducts }),
       })
       .mockResolvedValueOnce({
         ok: true,

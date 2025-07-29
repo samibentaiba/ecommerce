@@ -20,9 +20,9 @@ const getProduct = (id: string) => {
       price: 299.99,
       originalPrice: 399.99,
       images: [
-        "/placeholder.svg?height=500&width=500",
-        "/placeholder.svg?height=500&width=500",
-        "/placeholder.svg?height=500&width=500",
+        { id: "img1", alt: "Product 1" },
+        { id: "img2", alt: "Product 1" },
+        { id: "img3", alt: "Product 1" },
       ],
       rating: 4.8,
       reviews: 124,
@@ -49,7 +49,10 @@ const getProduct = (id: string) => {
         "Track your fitness journey with precision using our advanced smart fitness watch. Monitor heart rate, sleep patterns, and achieve your health goals.",
       price: 199.99,
       originalPrice: 249.99,
-      images: ["/placeholder.svg?height=500&width=500", "/placeholder.svg?height=500&width=500"],
+      images: [
+        { id: "img4", alt: "Product 2" },
+        { id: "img5", alt: "Product 2" },
+      ],
       rating: 4.6,
       reviews: 89,
       inStock: true,
@@ -112,16 +115,16 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           {/* Product Images */}
           <div className="space-y-4">
             <div className="aspect-square relative overflow-hidden rounded-lg border">
-              <Image src={product.images[0] || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+              <Image src={product.images[0]?.id ? `/api/images/${product.images[0].id}` : "/placeholder.svg"} alt={product.name} fill className="object-cover" />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {product.images.slice(1).map((image, index) => (
+              {product.images.slice(1).map((image: any, index: number) => (
                 <div
-                  key={index}
+                  key={image.id || index}
                   className="aspect-square relative overflow-hidden rounded-lg border cursor-pointer hover:opacity-75"
                 >
                   <Image
-                    src={image || "/placeholder.svg"}
+                    src={image.id ? `/api/images/${image.id}` : "/placeholder.svg"}
                     alt={`${product.name} ${index + 2}`}
                     fill
                     className="object-cover"

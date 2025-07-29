@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Save, Upload, Globe, Mail, Shield, Palette, Store, Loader2 } from "lucide-react"
 import { useSettings } from "./hook"
+import SubUserManagement from "@/components/admin/SubUserManagement";
 
 export default function SettingsPage() {
   const {
@@ -20,7 +21,13 @@ export default function SettingsPage() {
     saving,
     updateSetting,
     saveSettings,
-  } = useSettings()
+    subUsers,
+    subUsersLoading,
+    subUsersSaving,
+    createSubUser,
+    updateSubUser,
+    deleteSubUser,
+  } = useSettings();
 
   const handleSave = async (section: string) => {
     await saveSettings(section)
@@ -45,7 +52,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="store" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="store" className="flex items-center gap-2">
             <Store className="h-4 w-4" />
             Store
@@ -68,6 +75,9 @@ export default function SettingsPage() {
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Security
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            👥 Users
           </TabsTrigger>
         </TabsList>
 
@@ -627,6 +637,17 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <SubUserManagement
+            subUsers={subUsers}
+            loading={subUsersLoading}
+            saving={subUsersSaving}
+            onCreateUser={createSubUser}
+            onUpdateUser={updateSubUser}
+            onDeleteUser={deleteSubUser}
+          />
         </TabsContent>
       </Tabs>
     </div>

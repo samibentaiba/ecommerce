@@ -1,40 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createPermissionChecker } from "@/lib/permissions";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-// Helper to normalize status
-function normalizeStatus(status: string | undefined) {
-  if (!status) return undefined;
-  if (typeof status === "string") {
-    const upperStatus = status.toUpperCase();
-    if (upperStatus === "PUBLISHED" || upperStatus === "DRAFT") {
-      return upperStatus;
-    }
-    return upperStatus;
+// Helper function to get current user from session
+async function getCurrentUser(): Promise<any> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return null;
   }
-  return status;
+
+  // Get the full user data from database
+  return await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { permissions: true },
+  });
 }
 
-// GET: List all landing pages
+// GET: Get all landing pages with permission check
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can view landing pages
+    if (!permissionChecker.canView("LANDING_PAGE")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to view landing pages" },
+        { status: 403 }
+      );
+    }
+
     const landingPages = await prisma.landingPage.findMany({
       include: {
         product: true,
         template: true,
-        sections: {
-          orderBy: { order: "asc" },
-        },
+        sections: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
-    // Normalize status and ensure all fields are present
-    const result = landingPages.map((lp) => ({
-      ...lp,
-      status: normalizeStatus(lp.status),
-      description: lp.description ?? "",
-      heroImage: lp.heroImage ?? "",
-    }));
-    return NextResponse.json(result);
+
+    return NextResponse.json({ landingPages });
   } catch (error) {
     console.error("Error fetching landing pages:", error);
     return NextResponse.json(
@@ -44,117 +57,35 @@ export async function GET() {
   }
 }
 
-// POST: Create a new landing page
+// POST: Create a new landing page with permission check
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can create landing pages
+    if (!permissionChecker.canCreate("LANDING_PAGE")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to create landing pages" },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
-    const {
-      title,
-      slug,
-      productId,
-      headline,
-      description,
-      status,
-      templateId,
-      sections,
-    } = body;
-
-    // Validate required fields
-    if (!title || !slug || !productId || !headline) {
-      return NextResponse.json(
-        { error: "Missing required fields: title, slug, productId, headline" },
-        { status: 400 }
-      );
-    }
-
-    // Ensure template is always provided
-    if (!templateId || templateId === "none") {
-      return NextResponse.json(
-        {
-          error:
-            "Template is required. Please select a template or use the default template.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Handle templateId - if it's "none" or not provided, find the default template
-    let finalTemplateId = templateId;
-    if (!templateId || templateId === "none") {
-      const defaultTemplate = await prisma.landingPageTemplate.findFirst({
-        where: { isDefault: true },
-      });
-      finalTemplateId = defaultTemplate?.id;
-    }
-
     const landingPage = await prisma.landingPage.create({
-      data: {
-        title,
-        slug,
-        productId,
-        headline,
-        description: description || "",
-        status: status ? status.toUpperCase() : "DRAFT",
-        templateId: finalTemplateId,
-        sections: sections
-          ? {
-              create: sections.map((section: any, index: number) => ({
-                type: section.type.toUpperCase(),
-                title: section.title,
-                content: section.content,
-                image: section.image,
-                settings: section.settings || {},
-                order: index,
-                backgroundColor: section.backgroundColor,
-                textColor: section.textColor,
-                padding: section.padding,
-                margin: section.margin,
-                borderRadius: section.borderRadius,
-                isVisible: section.isVisible !== false,
-                customCSS: section.customCSS,
-              })),
-            }
-          : finalTemplateId
-          ? {
-              // If no sections provided but template exists, copy sections from template
-              create: (
-                await prisma.landingPageTemplateSection.findMany({
-                  where: { templateId: finalTemplateId },
-                  orderBy: { order: "asc" },
-                })
-              ).map((section, index) => ({
-                type: section.type,
-                title: section.title,
-                content: section.content,
-                image: section.image,
-                settings: section.settings,
-                order: index,
-                backgroundColor: section.backgroundColor,
-                textColor: section.textColor,
-                padding: section.padding,
-                margin: section.margin,
-                borderRadius: section.borderRadius,
-                isVisible: section.isVisible,
-                customCSS: section.customCSS,
-              })),
-            }
-          : undefined,
-      },
+      data: body,
       include: {
-        sections: {
-          orderBy: { order: "asc" },
-        },
+        product: true,
+        template: true,
+        sections: true,
       },
     });
 
-    // Normalize status and ensure all fields are present
-    const result = {
-      ...landingPage,
-      status: normalizeStatus(landingPage.status),
-      description: landingPage.description ?? "",
-      heroImage: landingPage.heroImage ?? "",
-    };
-    return NextResponse.json(result);
+    return NextResponse.json({ landingPage });
   } catch (error) {
     console.error("Error creating landing page:", error);
     return NextResponse.json(
@@ -164,39 +95,45 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT: Update a landing page
+// PUT: Update a landing page with permission check
 export async function PUT(req: NextRequest) {
   try {
-    const { id, ...updates } = await req.json();
-
-    // Handle status conversion to uppercase
-    if (updates.status) {
-      updates.status = updates.status.toUpperCase();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Ensure template is always provided
-    if (!updates.templateId || updates.templateId === "none") {
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can edit landing pages
+    if (!permissionChecker.canEdit("LANDING_PAGE")) {
       return NextResponse.json(
-        {
-          error:
-            "Template is required. Please select a template or use the default template.",
-        },
+        { error: "Insufficient permissions to edit landing pages" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { id, ...updateData } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Landing page ID is required" },
         { status: 400 }
       );
     }
 
     const landingPage = await prisma.landingPage.update({
       where: { id },
-      data: updates,
+      data: updateData,
+      include: {
+        product: true,
+        template: true,
+        sections: true,
+      },
     });
-    // Normalize status and ensure all fields are present
-    const result = {
-      ...landingPage,
-      status: normalizeStatus(landingPage.status),
-      description: landingPage.description ?? "",
-      heroImage: landingPage.heroImage ?? "",
-    };
-    return NextResponse.json(result);
+
+    return NextResponse.json({ landingPage });
   } catch (error) {
     console.error("Error updating landing page:", error);
     return NextResponse.json(
@@ -206,12 +143,39 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE: Remove a landing page
+// DELETE: Delete a landing page with permission check
 export async function DELETE(req: NextRequest) {
   try {
-    const { id } = await req.json();
-    await prisma.landingPage.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can delete landing pages
+    if (!permissionChecker.canDelete("LANDING_PAGE")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to delete landing pages" },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Landing page ID is required" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.landingPage.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Landing page deleted successfully" });
   } catch (error) {
     console.error("Error deleting landing page:", error);
     return NextResponse.json(

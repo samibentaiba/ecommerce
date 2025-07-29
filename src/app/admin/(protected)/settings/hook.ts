@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { ResourceType } from "@prisma/client";
 
 export interface Settings {
   // Store Settings
@@ -44,6 +45,41 @@ export interface Settings {
   googleAnalyticsId: string;
   facebookPixelId: string;
   enableTracking: boolean;
+}
+
+export interface SubUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  permissions: Permission[];
+}
+
+export interface Permission {
+  id: string;
+  userId: string;
+  resource: ResourceType;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export interface CreateSubUserData {
+  name: string;
+  email: string;
+  password: string;
+  permissions: Permission[];
+}
+
+export interface UpdateSubUserData {
+  id: string;
+  name?: string;
+  email?: string;
+  password?: string;
+  permissions?: Permission[];
 }
 
 const defaultSettings: Settings = {
@@ -98,6 +134,11 @@ export const useSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  // Sub-user management state
+  const [subUsers, setSubUsers] = useState<SubUser[]>([]);
+  const [subUsersLoading, setSubUsersLoading] = useState(false);
+  const [subUsersSaving, setSubUsersSaving] = useState(false);
 
   // Fetch settings from API
   const fetchSettings = useCallback(async () => {
@@ -215,10 +256,171 @@ export const useSettings = () => {
     }
   }, [toast]);
 
+  // Fetch sub-users
+  const fetchSubUsers = useCallback(async () => {
+    try {
+      setSubUsersLoading(true);
+      const response = await fetch("/api/admin/users");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch sub-users");
+      }
+
+      const data = await response.json();
+      setSubUsers(data.users || []);
+    } catch (error) {
+      console.error("Error fetching sub-users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load sub-users.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubUsersLoading(false);
+    }
+  }, [toast]);
+
+  // Create sub-user
+  const createSubUser = useCallback(
+    async (userData: CreateSubUserData) => {
+      try {
+        setSubUsersSaving(true);
+        const response = await fetch("/api/admin/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to create sub-user");
+        }
+
+        const data = await response.json();
+        setSubUsers((prev) => [...prev, data.user]);
+
+        toast({
+          title: "Success",
+          description: "Sub-user created successfully.",
+        });
+
+        return data.user;
+      } catch (error) {
+        console.error("Error creating sub-user:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to create sub-user.",
+          variant: "destructive",
+        });
+        return null;
+      } finally {
+        setSubUsersSaving(false);
+      }
+    },
+    [toast]
+  );
+
+  // Update sub-user
+  const updateSubUser = useCallback(
+    async (userData: UpdateSubUserData) => {
+      try {
+        setSubUsersSaving(true);
+        const response = await fetch("/api/admin/users", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to update sub-user");
+        }
+
+        const data = await response.json();
+        setSubUsers((prev) =>
+          prev.map((user) => (user.id === userData.id ? data.user : user))
+        );
+
+        toast({
+          title: "Success",
+          description: "Sub-user updated successfully.",
+        });
+
+        return data.user;
+      } catch (error) {
+        console.error("Error updating sub-user:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to update sub-user.",
+          variant: "destructive",
+        });
+        return null;
+      } finally {
+        setSubUsersSaving(false);
+      }
+    },
+    [toast]
+  );
+
+  // Delete sub-user
+  const deleteSubUser = useCallback(
+    async (userId: string) => {
+      try {
+        setSubUsersSaving(true);
+        const response = await fetch(`/api/admin/users?id=${userId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to delete sub-user");
+        }
+
+        setSubUsers((prev) => prev.filter((user) => user.id !== userId));
+
+        toast({
+          title: "Success",
+          description: "Sub-user deleted successfully.",
+        });
+
+        return true;
+      } catch (error) {
+        console.error("Error deleting sub-user:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to delete sub-user.",
+          variant: "destructive",
+        });
+        return false;
+      } finally {
+        setSubUsersSaving(false);
+      }
+    },
+    [toast]
+  );
+
   // Load settings on mount
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  // Load sub-users on mount
+  useEffect(() => {
+    fetchSubUsers();
+  }, [fetchSubUsers]);
 
   return {
     settings,
@@ -229,5 +431,13 @@ export const useSettings = () => {
     saveSettings,
     resetSettings,
     fetchSettings,
+    // Sub-user management
+    subUsers,
+    subUsersLoading,
+    subUsersSaving,
+    fetchSubUsers,
+    createSubUser,
+    updateSubUser,
+    deleteSubUser,
   };
 };

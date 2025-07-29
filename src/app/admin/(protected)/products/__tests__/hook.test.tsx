@@ -5,55 +5,56 @@ import { useProducts } from '../hook'
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 
+// Move mockProducts to top-level so all tests can use it
+const mockProducts = [
+  {
+    id: "product-1",
+    name: "Premium Wireless Headphones",
+    description: "High-quality wireless headphones with noise cancellation",
+    price: 299.99,
+    originalPrice: 349.99,
+    category: "Electronics",
+    stock: 50,
+    status: "ACTIVE" as const,
+    images: [
+      { id: "img-1", image: new ArrayBuffer(8), mimeType: "image/jpeg", alt: "Headphones front view", isPrimary: true },
+      { id: "img-2", image: new ArrayBuffer(8), mimeType: "image/jpeg", alt: "Headphones side view", isPrimary: false }
+    ],
+    variants: [
+      { id: "var-1", name: "Black", type: "COLOR" as const, value: "#000000", description: "Classic black", variantPrice: 299.99, stockQuantity: 25, images: [] },
+      { id: "var-2", name: "White", type: "COLOR" as const, value: "#FFFFFF", description: "Clean white", variantPrice: 299.99, stockQuantity: 25, images: [] }
+    ],
+    rating: 4.5,
+    createdAt: "2024-01-15T10:00:00Z",
+    updatedAt: "2024-01-15T10:00:00Z"
+  },
+  {
+    id: "product-2",
+    name: "Smart Fitness Watch",
+    description: "Advanced fitness tracking with heart rate monitoring",
+    price: 199.99,
+    originalPrice: undefined,
+    category: "Wearables",
+    stock: 30,
+    status: "INACTIVE" as const,
+    images: [],
+    variants: [],
+    rating: 4.2,
+    createdAt: "2024-01-14T15:30:00Z",
+    updatedAt: "2024-01-14T15:30:00Z"
+  }
+];
+
 describe('useProducts', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  const mockProducts = [
-    {
-      id: "product-1",
-      name: "Premium Wireless Headphones",
-      description: "High-quality wireless headphones with noise cancellation",
-      price: 299.99,
-      originalPrice: 349.99,
-      category: "Electronics",
-      stock: 50,
-      status: "ACTIVE" as const,
-      images: [
-        { id: "img-1", url: "/headphones-1.jpg", alt: "Headphones front view", isPrimary: true },
-        { id: "img-2", url: "/headphones-2.jpg", alt: "Headphones side view", isPrimary: false }
-      ],
-      variants: [
-        { id: "var-1", name: "Black", type: "COLOR" as const, value: "#000000", description: "Classic black", variantPrice: 299.99, stockQuantity: 25, images: [] },
-        { id: "var-2", name: "White", type: "COLOR" as const, value: "#FFFFFF", description: "Clean white", variantPrice: 299.99, stockQuantity: 25, images: [] }
-      ],
-      rating: 4.5,
-      createdAt: "2024-01-15T10:00:00Z",
-      updatedAt: "2024-01-15T10:00:00Z"
-    },
-    {
-      id: "product-2",
-      name: "Smart Fitness Watch",
-      description: "Advanced fitness tracking with heart rate monitoring",
-      price: 199.99,
-      originalPrice: undefined,
-      category: "Wearables",
-      stock: 30,
-      status: "INACTIVE" as const,
-      images: [],
-      variants: [],
-      rating: 4.2,
-      createdAt: "2024-01-14T15:30:00Z",
-      updatedAt: "2024-01-14T15:30:00Z"
-    }
-  ]
-
   describe('Initial State', () => {
     it('initializes with correct default values', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
 
       const { result } = renderHook(() => useProducts())
@@ -82,7 +83,7 @@ describe('useProducts', () => {
     it('fetches products on mount', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
 
       const { result } = renderHook(() => useProducts())
@@ -127,7 +128,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -160,7 +161,6 @@ describe('useProducts', () => {
       expect(result.current.formData.images).toHaveLength(1)
       expect(result.current.formData.images[0]).toEqual({
         id: expect.any(String),
-        url: "",
         alt: "",
         isPrimary: true,
       })
@@ -181,10 +181,10 @@ describe('useProducts', () => {
       const imageId = result.current.formData.images[0].id
 
       act(() => {
-        result.current.updateImage(imageId, { url: "/test-image.jpg", alt: "Test image" })
+        result.current.updateImage(imageId, { alt: "Test image" })
       })
 
-      expect(result.current.formData.images[0].url).toBe("/test-image.jpg")
+      expect(result.current.formData.images[0].alt).toBe("Test image")
       expect(result.current.formData.images[0].alt).toBe("Test image")
     })
 
@@ -312,7 +312,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -344,7 +344,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -511,7 +511,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -569,7 +569,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -627,7 +627,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -698,7 +698,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -731,10 +731,11 @@ describe('useProducts', () => {
       })
 
       expect(result.current.formData.name).toBe("")
-      expect(result.current.searchTerm).toBe("")
-      expect(result.current.statusFilter).toBe("all")
       expect(result.current.isDialogOpen).toBe(false)
       expect(result.current.editingProduct).toBe(null)
+      // searchTerm and statusFilter are NOT reset by resetForm anymore
+      expect(result.current.searchTerm).toBe("test")
+      expect(result.current.statusFilter).toBe("ACTIVE")
     })
   })
 
@@ -742,7 +743,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -808,7 +809,7 @@ describe('useProducts', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockProducts),
+        json: () => Promise.resolve({ products: mockProducts }),
       })
     })
 
@@ -857,4 +858,90 @@ describe('useProducts', () => {
       expect(result.current.formData.variants[0].variantPrice).toBe(25.99)
     })
   })
-}) 
+})
+
+describe('Variant Image Management', () => {
+  beforeEach(() => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ products: mockProducts }),
+    });
+  });
+
+  it('adds an image to a variant', async () => {
+    const { result } = renderHook(() => useProducts());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    act(() => {
+      result.current.addVariant();
+    });
+    const variantId = result.current.formData.variants[0].id;
+    act(() => {
+      result.current.addVariantImage(variantId);
+    });
+    expect(result.current.formData.variants[0].images).toHaveLength(1);
+    expect(result.current.formData.variants[0].images[0]).toEqual(
+      expect.objectContaining({ alt: '', isPrimary: true })
+    );
+  });
+
+  it('updates a variant image', async () => {
+    const { result } = renderHook(() => useProducts());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    act(() => {
+      result.current.addVariant();
+    });
+    const variantId = result.current.formData.variants[0].id;
+    act(() => {
+      result.current.addVariantImage(variantId);
+    });
+    const imageId = result.current.formData.variants[0].images[0].id;
+    act(() => {
+      result.current.updateVariantImage(variantId, imageId, { alt: 'Test Alt', isPrimary: true });
+    });
+    expect(result.current.formData.variants[0].images[0].alt).toBe('Test Alt');
+    expect(result.current.formData.variants[0].images[0].isPrimary).toBe(true);
+  });
+
+  it('removes a variant image', async () => {
+    const { result } = renderHook(() => useProducts());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    act(() => {
+      result.current.addVariant();
+    });
+    const variantId = result.current.formData.variants[0].id;
+    act(() => {
+      result.current.addVariantImage(variantId);
+    });
+    const imageId = result.current.formData.variants[0].images[0].id;
+    act(() => {
+      result.current.removeVariantImage(variantId, imageId);
+    });
+    expect(result.current.formData.variants[0].images).toHaveLength(0);
+  });
+
+  it('handles file upload for variant image', async () => {
+    const { result } = renderHook(() => useProducts());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    act(() => {
+      result.current.addVariant();
+    });
+    const variantId = result.current.formData.variants[0].id;
+    act(() => {
+      result.current.addVariantImage(variantId);
+    });
+    const imageId = result.current.formData.variants[0].images[0].id;
+    const file = new File(['test'], 'test.png', { type: 'image/png' });
+    act(() => {
+      result.current.updateVariantImage(variantId, imageId, { file });
+    });
+    expect(result.current.formData.variants[0].images[0].file).toBe(file);
+  });
+}); 

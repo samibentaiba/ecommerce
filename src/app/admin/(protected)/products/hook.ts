@@ -1,7 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Product, ProductImage, ProductVariant } from "@/lib/types";
+import type { Product, ProductVariant } from "@/lib/types";
+
+// Extend ProductImage for local state to allow file
+// Rename local ProductImage type to AdminProductImage to avoid confusion
+export type AdminProductImage = {
+  id: string;
+  image?: ArrayBuffer; // Binary image data
+  mimeType?: string; // To serve correct Content-Type
+  alt: string;
+  isPrimary: boolean;
+  file?: File;
+};
+
+// Extend ProductVariant for local state to allow images with file
+export type ProductVariantWithFile = Omit<ProductVariant, "images"> & {
+  images: AdminProductImage[];
+};
+
+// Helper to check if an image is a new file
+function isFileImage(img: AdminProductImage) {
+  return img && img.file instanceof File;
+}
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -15,17 +36,38 @@ export function useProducts() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    price: string;
+    originalPrice: string;
+    category: string;
+    stock: string;
+    status: "ACTIVE" | "INACTIVE";
+    images: AdminProductImage[];
+    variants: ProductVariantWithFile[];
+  }>({
     name: "",
     description: "",
     price: "",
     originalPrice: "",
     category: "",
     stock: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
-    images: [] as ProductImage[],
-    variants: [] as ProductVariant[],
+    status: "ACTIVE",
+    images: [],
+    variants: [],
   });
+
+  // Expose productImages and setProductImages for the images tab
+  const productImages = formData.images;
+  const setProductImages: React.Dispatch<
+    React.SetStateAction<AdminProductImage[]>
+  > = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: typeof value === "function" ? value(prev.images) : value,
+    }));
+  };
 
   // Load products from API
   useEffect(() => {
@@ -40,7 +82,7 @@ export function useProducts() {
         throw new Error("Failed to fetch products");
       }
       const data = await response.json();
-      setProducts(data);
+      setProducts(Array.isArray(data.products) ? data.products : []);
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -61,41 +103,118 @@ export function useProducts() {
         stock: parseInt(formData.stock),
       };
 
-      if (editingProduct) {
-        // Update existing product
-        const response = await fetch(
-          `/api/admin/products?id=${editingProduct.id}`,
-          {
-            method: "PUT",
+      // Check if any product or variant images are files
+      const hasFileImages =
+        (formData.images as AdminProductImage[]).some((img) =>
+          isFileImage(img as AdminProductImage)
+        ) ||
+        (formData.variants || []).some((variant) =>
+          (variant.images as AdminProductImage[]).some((img) =>
+            isFileImage(img as AdminProductImage)
+          )
+        );
+
+      let response;
+      if (hasFileImages) {
+        // Use multipart/form-data
+        const fd = new FormData();
+        // Prepare product data without file objects
+        const productDataForJson = {
+          ...productData,
+          images: (formData.images as AdminProductImage[]).map(
+            (img: AdminProductImage) => {
+              const { file, ...rest } = img;
+              return rest;
+            }
+          ),
+          variants: (formData.variants || []).map((variant) => ({
+            ...variant,
+            images: (variant.images || []).map((img: AdminProductImage) => {
+              const { file, ...rest } = img;
+              return rest;
+            }),
+          })),
+        };
+        fd.append("product", JSON.stringify(productDataForJson));
+        // Attach product images
+        formData.images.forEach((img: AdminProductImage, i) => {
+          if (img.file instanceof File) {
+            fd.append(`images`, img.file as File, img.file!.name);
+          }
+        });
+        // Attach variant images
+        const variantImagesMap: Record<string, File[]> = {};
+        (formData.variants || []).forEach((variant) => {
+          (variant.images || []).forEach((img: AdminProductImage) => {
+            if (img.file instanceof File) {
+              if (!variantImagesMap[variant.id])
+                variantImagesMap[variant.id] = [];
+              variantImagesMap[variant.id].push(img.file as File);
+            }
+          });
+        });
+        if (Object.keys(variantImagesMap).length > 0) {
+          // Append variant images mapping as JSON
+          fd.append("variantImages", JSON.stringify(variantImagesMap));
+          // Append the actual files with keys like variantImages-<variantId>-<index>
+          Object.entries(variantImagesMap).forEach(([variantId, files]) => {
+            files.forEach((file, idx) => {
+              fd.append(`variantImages-${variantId}-${idx}`, file, file.name);
+            });
+          });
+        }
+        if (editingProduct) {
+          response = await fetch(
+            `/api/admin/products?id=${editingProduct.id}`,
+            {
+              method: "PUT",
+              body: fd,
+            }
+          );
+        } else {
+          response = await fetch("/api/admin/products", {
+            method: "POST",
+            body: fd,
+          });
+        }
+      } else {
+        // Fallback to JSON
+        if (editingProduct) {
+          response = await fetch(
+            `/api/admin/products?id=${editingProduct.id}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(productData),
+            }
+          );
+        } else {
+          response = await fetch("/api/admin/products", {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(productData),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to update product");
+          });
         }
-
-        const updatedProduct = await response.json();
-        setProducts(
-          products.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
-        );
-      } else {
-        // Create new product
-        const response = await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(productData),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to create product");
-        }
-
-        const newProduct = await response.json();
-        setProducts([newProduct, ...products]);
       }
 
+      if (!response.ok) {
+        throw new Error(
+          editingProduct
+            ? "Failed to update product"
+            : "Failed to create product"
+        );
+      }
+
+      const updatedOrNewProduct = await response.json();
+      if (editingProduct) {
+        setProducts(
+          products.map((p) =>
+            p.id === editingProduct.id ? updatedOrNewProduct : p
+          )
+        );
+      } else {
+        setProducts([updatedOrNewProduct, ...products]);
+      }
       resetForm();
     } catch (error) {
       console.error("Error saving product:", error);
@@ -171,8 +290,6 @@ export function useProducts() {
   const resetForm = () => {
     setIsDialogOpen(false);
     setEditingProduct(null);
-    setSearchTerm("");
-    setStatusFilter("all");
     setFormData({
       name: "",
       description: "",
@@ -186,25 +303,22 @@ export function useProducts() {
     });
   };
 
+  // Image management helpers
   const addImage = () => {
-    setFormData({
-      ...formData,
-      images: [
-        ...formData.images,
-        {
-          id: Date.now().toString(),
-          url: "",
-          alt: "",
-          isPrimary: formData.images.length === 0,
-        },
-      ],
-    });
+    const hasPrimaryImage = formData.images.some((img) => img.isPrimary);
+    setProductImages([
+      ...formData.images,
+      {
+        id: Math.random().toString(36).substring(2),
+        alt: "",
+        isPrimary: !hasPrimaryImage && formData.images.length === 0, // Only set as primary if no primary exists and it's the first image
+      },
+    ]);
   };
 
-  const updateImage = (id: string, updates: Partial<ProductImage>) => {
-    setFormData({
-      ...formData,
-      images: formData.images.map((img) => {
+  const updateImage = (id: string, updates: Partial<AdminProductImage>) => {
+    setProductImages(
+      formData.images.map((img) => {
         if (img.id === id) {
           return { ...img, ...updates };
         }
@@ -213,15 +327,17 @@ export function useProducts() {
           return { ...img, isPrimary: false };
         }
         return img;
-      }),
-    });
+      })
+    );
   };
 
   const removeImage = (id: string) => {
-    setFormData({
-      ...formData,
-      images: formData.images.filter((img) => img.id !== id),
-    });
+    let newImages = formData.images.filter((img) => img.id !== id);
+    // If the removed image was primary, set the first image as primary
+    if (!newImages.some((img) => img.isPrimary) && newImages.length > 0) {
+      newImages[0].isPrimary = true;
+    }
+    setProductImages(newImages);
   };
 
   const addVariant = () => {
@@ -259,6 +375,80 @@ export function useProducts() {
     });
   };
 
+  // Variant image management helpers
+  const addVariantImage = (variantId: string) => {
+    setFormData({
+      ...formData,
+      variants: formData.variants.map((variant) => {
+        if (variant.id === variantId) {
+          const hasPrimaryImage = (variant.images || []).some(
+            (img) => img.isPrimary
+          );
+          const newImage: AdminProductImage = {
+            id: Math.random().toString(36).substring(2),
+            alt: "",
+            isPrimary: !hasPrimaryImage && (variant.images || []).length === 0, // Only set as primary if no primary exists and it's the first image
+          };
+          return {
+            ...variant,
+            images: [...(variant.images || []), newImage],
+          };
+        }
+        return variant;
+      }),
+    });
+  };
+
+  const updateVariantImage = (
+    variantId: string,
+    imageId: string,
+    updates: Partial<AdminProductImage>
+  ) => {
+    setFormData({
+      ...formData,
+      variants: formData.variants.map((variant) => {
+        if (variant.id === variantId) {
+          return {
+            ...variant,
+            images: (variant.images || []).map((img) => {
+              if (img.id === imageId) {
+                return { ...img, ...updates };
+              }
+              // If we're setting an image as primary, make all others non-primary
+              if (updates.isPrimary) {
+                return { ...img, isPrimary: false };
+              }
+              return img;
+            }),
+          };
+        }
+        return variant;
+      }),
+    });
+  };
+
+  const removeVariantImage = (variantId: string, imageId: string) => {
+    setFormData({
+      ...formData,
+      variants: formData.variants.map((variant) => {
+        if (variant.id === variantId) {
+          let newImages = (variant.images || []).filter(
+            (img) => img.id !== imageId
+          );
+          // If the removed image was primary, set the first image as primary
+          if (!newImages.some((img) => img.isPrimary) && newImages.length > 0) {
+            newImages[0].isPrimary = true;
+          }
+          return {
+            ...variant,
+            images: newImages,
+          };
+        }
+        return variant;
+      }),
+    });
+  };
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -291,10 +481,11 @@ export function useProducts() {
     addVariant,
     updateVariant,
     removeVariant,
-    productImages: formData.images,
-    setProductImages: (images: ProductImage[]) =>
-      setFormData({ ...formData, images }),
-    productVariants: formData.variants,
+    addVariantImage,
+    updateVariantImage,
+    removeVariantImage,
+    productImages,
+    setProductImages,
     // Delete handlers
     showDeleteDialog,
     setShowDeleteDialog,

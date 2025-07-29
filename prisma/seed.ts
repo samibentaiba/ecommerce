@@ -1,49 +1,111 @@
 // /home/sami/Documents/GitHub/ecommerce/prisma/seed.ts
 
-import seedUsers from "&/seeders/users";
-import seedProducts from "&/seeders/products";
-import seedProductPages from "&/seeders/productPages";
-import seedOrders from "&/seeders/orders";
-import seedLandingPageTemplates from "&/seeders/landingPageTemplates";
-import seedLandingPages from "&/seeders/landingPages";
-import seedSettings from "&/seeders/settings";
-import seedCart from "&/seeders/cart";
-import seedWishlist from "&/seeders/wishlist";
-import prisma from "&/prisma";
+import { PrismaClient } from "@prisma/client";
+import { seedUsers } from "./seeders/users";
+import seedProducts from "./seeders/products";
+import seedOrders from "./seeders/orders";
+import seedCart from "./seeders/cart";
+import seedWishlist from "./seeders/wishlist";
+import seedLandingPages from "./seeders/landingPages";
+import seedProductPages from "./seeders/productPages";
+import seedLandingPageTemplates from "./seeders/landingPageTemplates";
+import seedSettings from "./seeders/settings";
 
-async function main() {
-  console.log("🌱 Seeding database...");
+const prisma = new PrismaClient();
 
-  // Seed in dependency order
-  await seedUsers();
-  await seedProducts();
-  await seedProductPages();
-  await seedLandingPageTemplates();
-  await seedLandingPages();
-  await seedOrders();
-  await seedCart();
-  await seedWishlist();
-  await seedSettings(prisma);
+// Function to fix multiple primary images
+async function fixPrimaryImages() {
+  console.log("🔧 Fixing primary images...");
 
-  console.log("✅ Done seeding.");
-  
-  // Log summary
-  const userCount = await prisma.user.count();
-  const productCount = await prisma.product.count();
-  const orderCount = await prisma.order.count();
-  const cartItemCount = await prisma.cartItem.count();
-  const wishlistCount = await prisma.wishlist.count();
-  const landingPageCount = await prisma.landingPage.count();
-  const productPageCount = await prisma.productPage.count();
-  
-  console.log("\n📊 Seeding Summary:");
-  console.log(`👤 Users: ${userCount}`);
-  console.log(`📦 Products: ${productCount}`);
-  console.log(`📋 Orders: ${orderCount}`);
-  console.log(`🛒 Cart Items: ${cartItemCount}`);
-  console.log(`❤️ Wishlist Items: ${wishlistCount}`);
-  console.log(`🌐 Landing Pages: ${landingPageCount}`);
-  console.log(`📄 Product Pages: ${productPageCount}`);
+  // Fix product images
+  const products = await prisma.product.findMany({
+    include: {
+      images: true,
+      variants: {
+        include: { images: true },
+      },
+    },
+  });
+
+  for (const product of products) {
+    // Fix product-level images
+    const productImages = product.images.filter((img) => !img.variantId);
+    if (productImages.length > 0) {
+      const primaryImages = productImages.filter((img) => img.isPrimary);
+      if (primaryImages.length > 1) {
+        // Keep only the first primary image, set others to false
+        for (let i = 1; i < primaryImages.length; i++) {
+          await prisma.productImage.update({
+            where: { id: primaryImages[i].id },
+            data: { isPrimary: false },
+          });
+        }
+        console.log(
+          `Fixed ${primaryImages.length - 1} duplicate primary images for product ${product.name}`
+        );
+      }
+    }
+
+    // Fix variant images
+    for (const variant of product.variants) {
+      const variantImages = variant.images;
+      if (variantImages.length > 0) {
+        const primaryImages = variantImages.filter((img) => img.isPrimary);
+        if (primaryImages.length > 1) {
+          // Keep only the first primary image, set others to false
+          for (let i = 1; i < primaryImages.length; i++) {
+            await prisma.productImage.update({
+              where: { id: primaryImages[i].id },
+              data: { isPrimary: false },
+            });
+          }
+          console.log(
+            `Fixed ${primaryImages.length - 1} duplicate primary images for variant ${variant.name}`
+          );
+        }
+      }
+    }
+  }
+
+  console.log("✅ Primary images fixed");
 }
 
-main().catch((e) => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());
+async function main() {
+  console.log("🌱 Starting database seeding...");
+
+  try {
+    // Seed users first
+    await seedUsers();
+
+    // Seed products
+    await seedProducts();
+
+    // Seed other data
+    await seedOrders();
+    await seedCart();
+    await seedWishlist();
+    await seedLandingPages();
+    await seedProductPages();
+    await seedLandingPageTemplates();
+    await seedSettings(prisma);
+
+    // Fix any existing primary image issues
+    await fixPrimaryImages();
+
+    console.log("✅ Database seeding completed successfully!");
+  } catch (error) {
+    console.error("❌ Error during seeding:", error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

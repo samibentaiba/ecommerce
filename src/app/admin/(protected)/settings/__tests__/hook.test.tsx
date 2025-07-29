@@ -381,4 +381,105 @@ describe("useSettings", () => {
     expect(result.current.settings.storeName).toBe("EcoStore");
     expect(result.current.settings.storeEmail).toBe("contact@ecostore.com");
   });
+
+  it("should handle sub-user management operations", async () => {
+    const mockSubUser = {
+      id: "sub-user-1",
+      name: "Test Sub-User",
+      email: "test@example.com",
+      role: "ADMIN",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      permissions: [
+        {
+          id: "perm-1",
+          userId: "sub-user-1",
+          resource: "PRODUCT" as const,
+          canView: true,
+          canCreate: true,
+          canEdit: false,
+          canDelete: false,
+        },
+      ],
+    };
+
+    // Mock create sub-user
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ user: mockSubUser, message: "Sub-user created successfully" }),
+    });
+
+    const { result } = renderHook(() => useSettings());
+
+    let createResult: SubUser | null | undefined;
+    await act(async () => {
+      createResult = await result.current.createSubUser({
+        name: "Test Sub-User",
+        email: "test@example.com",
+        password: "password123",
+        permissions: mockSubUser.permissions,
+      });
+    });
+
+    expect(createResult).toEqual(mockSubUser);
+    expect(result.current.subUsers).toContain(mockSubUser);
+
+    // Mock update sub-user
+    const updatedUser = { ...mockSubUser, name: "Updated Sub-User" };
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ user: updatedUser, message: "Sub-user updated successfully" }),
+    });
+
+    let updateResult: SubUser | null | undefined;
+    await act(async () => {
+      updateResult = await result.current.updateSubUser({
+        id: "sub-user-1",
+        name: "Updated Sub-User",
+      });
+    });
+
+    expect(updateResult).toEqual(updatedUser);
+    expect(result.current.subUsers).toContain(updatedUser);
+
+    // Mock delete sub-user
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "Sub-user deleted successfully" }),
+    });
+
+    let deleteResult: boolean | undefined;
+    await act(async () => {
+      deleteResult = await result.current.deleteSubUser("sub-user-1");
+    });
+
+    expect(deleteResult).toBe(true);
+    expect(result.current.subUsers).not.toContain(updatedUser);
+  });
+
+  it("should handle sub-user management errors", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: "Email already exists" }),
+    });
+
+    const { result } = renderHook(() => useSettings());
+
+    let createResult: SubUser | null | undefined;
+    await act(async () => {
+      createResult = await result.current.createSubUser({
+        name: "Test User",
+        email: "existing@example.com",
+        password: "password123",
+        permissions: [],
+      });
+    });
+
+    expect(createResult).toBeNull();
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Error",
+      description: "Email already exists",
+      variant: "destructive",
+    });
+  });
 }); 

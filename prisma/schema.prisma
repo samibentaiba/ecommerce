@@ -8,15 +8,35 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default("singleton")
-  email     String     @unique
-  name      String
-  password  String
-  role      Role       @default(ADMIN)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  cart      Cart?
-  wishlists Wishlist[]
+  id             String        @id @default("singleton")
+  email          String        @unique
+  name           String
+  password       String
+  image          String? // Profile picture URL (legacy)
+  profileImageId String?       @unique // New: reference to ProductImage, must be unique for 1-1
+  profileImage   ProductImage? @relation("UserProfileImage", fields: [profileImageId], references: [id])
+  role           Role          @default(ADMIN)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  cart           Cart?
+  wishlists      Wishlist[]
+
+  // Sub-user support
+  parentId String? // If null, this is a super user
+  parent   User?   @relation("UserSubUsers", fields: [parentId], references: [id])
+  subUsers User[]  @relation("UserSubUsers")
+
+  // Permissions for sub-users
+  permissions Permission[]
+
+  // Authentication fields
+  twoFactorEnabled Boolean?  @default(false)
+  twoFactorSecret  String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  lastLoginAt      DateTime?
+  loginAttempts    Int       @default(0)
+  lockedUntil      DateTime?
 }
 
 model Product {
@@ -41,14 +61,16 @@ model Product {
 }
 
 model ProductImage {
-  id        String          @id @default(cuid())
-  url       String
-  alt       String
-  isPrimary Boolean         @default(false)
-  productId String
-  variantId String?
-  product   Product         @relation(fields: [productId], references: [id])
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+  id          String          @id @default(cuid())
+  alt         String
+  isPrimary   Boolean         @default(false)
+  productId   String
+  variantId   String?
+  product     Product         @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+  image       Bytes // Binary image data
+  mimeType    String // To serve correct Content-Type
+  userProfile User?           @relation("UserProfileImage")
 }
 
 model ProductVariant {
@@ -212,6 +234,21 @@ model AppSettings {
   updatedAt DateTime @updatedAt
 }
 
+model Permission {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  // Resource type: e.g., 'ORDER', 'PRODUCT', 'LANDING_PAGE', etc.
+  resource  ResourceType
+  // CRUD permissions
+  canView   Boolean      @default(false)
+  canCreate Boolean      @default(false)
+  canEdit   Boolean      @default(false)
+  canDelete Boolean      @default(false)
+
+  @@unique([userId, resource])
+}
+
 enum Role {
   CUSTOMER
   ADMIN
@@ -256,4 +293,14 @@ enum LandingPageSectionType {
   GALLERY
   CALL_TO_ORDER
   FULL_IMAGE
+}
+
+enum ResourceType {
+  ORDER
+  PRODUCT
+  LANDING_PAGE
+  PRODUCT_PAGE
+  CART
+  WISHLIST
+  SETTINGS
 }

@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OrderStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { createPermissionChecker } from "@/lib/permissions";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 type ProductInput = {
   name: string;
@@ -10,8 +13,38 @@ type ProductInput = {
   variant?: string;
 };
 
+// Helper function to get current user from session
+async function getCurrentUser(): Promise<any> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  // Get the full user data from database
+  return await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { permissions: true },
+  });
+}
+
+// GET: Get all orders with permission check
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can view orders
+    if (!permissionChecker.canView("ORDER")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to view orders" },
+        { status: 403 }
+      );
+    }
+
     const orders = await prisma.order.findMany({
       include: {
         items: {
@@ -22,28 +55,11 @@ export async function GET() {
         },
       },
       orderBy: {
-        orderDate: "desc",
+        createdAt: "desc",
       },
     });
 
-    // Transform the data to match the expected format
-    const transformedOrders = orders.map((order) => ({
-      id: order.id,
-      customerName: order.customerName,
-      customerPhone: order.customerPhone,
-      products: order.items.map((item) => ({
-        name: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        variant: item.variant?.value,
-      })),
-      total: order.total,
-      status: order.status.toLowerCase(),
-      orderDate: order.orderDate.toISOString(),
-      shippingAddress: order.shippingAddress,
-    }));
-
-    return NextResponse.json(transformedOrders);
+    return NextResponse.json({ orders });
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(
@@ -53,77 +69,36 @@ export async function GET() {
   }
 }
 
+// POST: Create a new order with permission check
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const {
-      customerName,
-      customerPhone,
-      products,
-      total,
-      status,
-      orderDate,
-      shippingAddress,
-    } = body;
-
-    // Create order items
-    const orderItems: Array<{
-      productName: string;
-      quantity: number;
-      price: number;
-      productId: string;
-      variantId: string | null;
-      variant?: string;
-    }> = products.map((product: ProductInput) => ({
-      productName: product.name,
-      quantity: product.quantity,
-      price: product.price,
-      productId: "", // We'll need to find the actual product ID
-      variantId: null, // We'll need to find the variant if specified
-      variant: product.variant,
-    }));
-
-    // Find product IDs for the order items
-    for (const item of orderItems) {
-      const product = await prisma.product.findFirst({
-        where: { name: item.productName },
-        include: { variants: true },
-      });
-
-      if (!product) {
-        throw new Error(`Product not found: ${item.productName}`);
-      }
-
-      item.productId = product.id;
-
-      // Find variant if specified
-      if (item.variant && product.variants.length > 0) {
-        const variant = product.variants.find(
-          (v: any) => v.value === item.variant
-        );
-        if (variant) {
-          item.variantId = variant.id;
-        }
-      }
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can create orders
+    if (!permissionChecker.canCreate("ORDER")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to create orders" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+
+    // Handle the order creation with items
     const order = await prisma.order.create({
       data: {
-        customerName,
-        customerPhone,
-        total: parseFloat(total),
-        status: (status || "PENDING").toUpperCase() as OrderStatus,
-        orderDate: new Date(orderDate),
-        shippingAddress,
-        items: {
-          create: orderItems.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            price: item.price,
-            productName: item.productName,
-          })),
-        },
+        customerName: body.customerName,
+        customerPhone: body.customerPhone,
+        total: body.total,
+        status: body.status,
+        orderDate: body.orderDate,
+        shippingAddress: body.shippingAddress,
+        items: body.items,
       },
       include: {
         items: {
@@ -135,24 +110,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Transform the response
-    const transformedOrder = {
-      id: order.id,
-      customerName: order.customerName,
-      customerPhone: order.customerPhone,
-      products: order.items.map((item) => ({
-        name: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        variant: item.variant?.value,
-      })),
-      total: order.total,
-      status: order.status.toLowerCase(),
-      orderDate: order.orderDate.toISOString(),
-      shippingAddress: order.shippingAddress,
-    };
-
-    return NextResponse.json(transformedOrder);
+    return NextResponse.json({ order });
   } catch (error) {
     console.error("Error creating order:", error);
     return NextResponse.json(
@@ -162,10 +120,26 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// PUT: Update an order with permission check
 export async function PUT(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can edit orders
+    if (!permissionChecker.canEdit("ORDER")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to edit orders" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { id, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -174,95 +148,9 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const {
-      customerName,
-      customerPhone,
-      products,
-      total,
-      status,
-      orderDate,
-      shippingAddress,
-    } = body;
-
-    // Update order
     const order = await prisma.order.update({
       where: { id },
-      data: {
-        customerName,
-        customerPhone,
-        total: parseFloat(total),
-        status: (status || "PENDING").toUpperCase() as OrderStatus,
-        orderDate: new Date(orderDate),
-        shippingAddress,
-        updatedAt: new Date(),
-      },
-    });
-
-    // Update order items if provided
-    if (products) {
-      // Delete existing items
-      await prisma.orderItem.deleteMany({
-        where: { orderId: id },
-      });
-
-      // Create new items
-      const orderItems: Array<{
-        productName: string;
-        quantity: number;
-        price: number;
-        productId: string;
-        variantId: string | null;
-        variant?: string;
-      }> = products.map((product: ProductInput) => ({
-        productName: product.name,
-        quantity: product.quantity,
-        price: product.price,
-        productId: "", // We'll need to find the actual product ID
-        variantId: null, // We'll need to find the variant if specified
-        variant: product.variant,
-      }));
-
-      // Find product IDs for the order items
-      for (const item of orderItems) {
-        const product = await prisma.product.findFirst({
-          where: { name: item.productName },
-          include: { variants: true },
-        });
-
-        if (!product) {
-          throw new Error(`Product not found: ${item.productName}`);
-        }
-
-        item.productId = product.id;
-
-        // Find variant if specified
-        if (item.variant && product.variants.length > 0) {
-          const variant = product.variants.find(
-            (v) => v.value === item.variant
-          );
-          if (variant) {
-            item.variantId = variant.id;
-          }
-        }
-      }
-
-      // Create new order items
-      await prisma.orderItem.createMany({
-        data: orderItems.map((item) => ({
-          orderId: id,
-          productId: item.productId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price: item.price,
-          productName: item.productName,
-        })),
-      });
-    }
-
-    // Fetch updated order with relations
-    const updatedOrder = await prisma.order.findUnique({
-      where: { id },
+      data: updateData,
       include: {
         items: {
           include: {
@@ -273,24 +161,7 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    // Transform the response
-    const transformedOrder = {
-      id: updatedOrder!.id,
-      customerName: updatedOrder!.customerName,
-      customerPhone: updatedOrder!.customerPhone,
-      products: updatedOrder!.items.map((item) => ({
-        name: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        variant: item.variant?.value,
-      })),
-      total: updatedOrder!.total,
-      status: updatedOrder!.status.toLowerCase(),
-      orderDate: updatedOrder!.orderDate.toISOString(),
-      shippingAddress: updatedOrder!.shippingAddress,
-    };
-
-    return NextResponse.json(transformedOrder);
+    return NextResponse.json({ order });
   } catch (error) {
     console.error("Error updating order:", error);
     return NextResponse.json(
@@ -300,8 +171,24 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+// DELETE: Delete an order with permission check
 export async function DELETE(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const permissionChecker = createPermissionChecker(user);
+
+    // Check if user can delete orders
+    if (!permissionChecker.canDelete("ORDER")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions to delete orders" },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -312,17 +199,11 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Delete order items first
-    await prisma.orderItem.deleteMany({
-      where: { orderId: id },
-    });
-
-    // Delete the order
     await prisma.order.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: "Order deleted successfully" });
   } catch (error) {
     console.error("Error deleting order:", error);
     return NextResponse.json(

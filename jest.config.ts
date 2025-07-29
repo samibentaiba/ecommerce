@@ -13,6 +13,14 @@ const customJestConfig: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  transform: {
+    "^.+\\.(ts|tsx)$": ["ts-jest", { useESM: true }],
+    "^.+\\.js$": "babel-jest",
+  },
+  extensionsToTreatAsEsm: [".ts", ".tsx"],
+  transformIgnorePatterns: [
+    "/node_modules/(?!jose|openid-client|next-auth|@auth|@next|@prisma|@radix-ui|uuid|react|react-dom|@testing-library|@types|prisma|bcryptjs|jsonwebtoken|papaparse|lucide-react|tailwind-merge|undici|msw|ts-jest|ts-node|tsx)/",
+  ],
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   collectCoverageFrom: [
     "src/**/*.{js,jsx,ts,tsx}",
@@ -25,6 +33,12 @@ const customJestConfig: Config = {
       functions: 80,
       lines: 80,
       statements: 80,
+    },
+  },
+  globals: {
+    "ts-jest": {
+      useESM: true,
+      tsconfig: "tsconfig.json",
     },
   },
 };

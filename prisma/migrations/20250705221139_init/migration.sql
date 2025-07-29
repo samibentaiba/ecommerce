@@ -50,18 +50,6 @@ CREATE TABLE "Product" (
 );
 
 -- CreateTable
-CREATE TABLE "ProductImage" (
-    "id" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "alt" TEXT NOT NULL,
-    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
-    "productId" TEXT NOT NULL,
-    "variantId" TEXT,
-
-    CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "ProductVariant" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -73,6 +61,19 @@ CREATE TABLE "ProductVariant" (
     "productId" TEXT NOT NULL,
 
     CONSTRAINT "ProductVariant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProductImage" (
+    "id" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "alt" TEXT NOT NULL,
+    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+    "productId" TEXT NOT NULL,
+    "variantId" TEXT,
+    "data" BYTEA,
+
+    CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -238,13 +239,9 @@ CREATE UNIQUE INDEX "ProductPage_productId_key" ON "ProductPage"("productId");
 CREATE UNIQUE INDEX "ProductPage_slug_key" ON "ProductPage"("slug");
 
 -- AddForeignKey
-ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ProductVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ProductVariant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

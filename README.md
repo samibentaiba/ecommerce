@@ -1,53 +1,212 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app) and optimized for [Bun](https://bun.sh).
+# Ecommerce Platform
 
-## Prerequisites
+A modern, full-featured ecommerce platform built with Next.js, TypeScript, and Prisma.
 
-- [Bun](https://bun.sh) - Fast JavaScript runtime and package manager
-- [Node.js](https://nodejs.org/) - For compatibility (Bun is recommended)
+## Features
+
+### Core Ecommerce Features
+
+- **Product Management**: Full CRUD operations for products with variants and images
+- **Order Management**: Complete order lifecycle with status tracking
+- **Landing Pages**: Customizable landing pages with drag-and-drop builder
+- **Product Pages**: SEO-optimized product detail pages
+- **Shopping Cart**: Persistent cart functionality
+- **Wishlist**: User wishlist management
+- **Admin Dashboard**: Comprehensive admin interface
+
+### User Management & Permissions
+
+- **Super User System**: Single admin user with full system access
+- **Sub-User Management**: Create and manage sub-users with granular permissions
+- **Permission System**: Resource-level access control (View, Create, Edit, Delete)
+- **Resource Types**: Orders, Products, Landing Pages, Product Pages, Cart, Wishlist, Settings
+
+### Technical Features
+
+- **TypeScript**: Full type safety throughout the application
+- **Prisma ORM**: Type-safe database operations
+- **Next.js 14**: App Router with server components
+- **PostgreSQL**: Robust database backend
+- **Responsive Design**: Mobile-first UI with Tailwind CSS
+- **Testing**: Comprehensive test suite with Jest and React Testing Library
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- npm or yarn
+
+### Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <repository-url>
+   cd ecommerce
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Update `.env` with your database connection:
+
+   ```env
+   DATABASE_URL="postgresql://username:password@localhost:5432/ecommerce"
+   ```
+
+4. **Set up the database**
+
+   ```bash
+   npx prisma migrate dev
+   npx prisma db seed
+   ```
+
+5. **Start the development server**
+
+   ```bash
+   npm run dev
+   ```
+
+6. **Access the application**
+   - Frontend: http://localhost:3000
+   - Admin Panel: http://localhost:3000/admin
+   - Default admin credentials: admin@store.com / admin1234
+
+## Sub-User Management
+
+### Overview
+
+The platform supports a hierarchical user system where a super user (admin) can create and manage sub-users with specific permissions.
+
+### Creating Sub-Users
+
+1. Navigate to Admin → Settings → Users
+2. Click "Add Sub-User"
+3. Fill in user details (name, email, password)
+4. Set permissions for each resource type:
+   - **Orders**: View, create, edit, delete orders
+   - **Products**: Manage product catalog
+   - **Landing Pages**: Create and manage landing pages
+   - **Product Pages**: Manage product detail pages
+   - **Cart**: View cart data
+   - **Wishlist**: View wishlist data
+   - **Settings**: Access system settings
+
+### Permission Levels
+
+- **View**: Can see the resource but cannot modify
+- **Create**: Can create new items
+- **Edit**: Can modify existing items
+- **Delete**: Can remove items
+
+### Example Sub-User Roles
+
+- **Product Manager**: Full product access, view-only order access
+- **Order Manager**: Order management, limited product access
+- **Marketing Manager**: Landing page and product page management
+
+## API Endpoints
+
+### Admin APIs
+
+- `GET /api/admin/products` - List products (requires PRODUCT view permission)
+- `POST /api/admin/products` - Create product (requires PRODUCT create permission)
+- `PUT /api/admin/products` - Update product (requires PRODUCT edit permission)
+- `DELETE /api/admin/products` - Delete product (requires PRODUCT delete permission)
+
+- `GET /api/admin/orders` - List orders (requires ORDER view permission)
+- `POST /api/admin/orders` - Create order (requires ORDER create permission)
+- `PUT /api/admin/orders` - Update order (requires ORDER edit permission)
+- `DELETE /api/admin/orders` - Delete order (requires ORDER delete permission)
+
+- `GET /api/admin/landing-pages` - List landing pages (requires LANDING_PAGE view permission)
+- `POST /api/admin/landing-pages` - Create landing page (requires LANDING_PAGE create permission)
+- `PUT /api/admin/landing-pages` - Update landing page (requires LANDING_PAGE edit permission)
+- `DELETE /api/admin/landing-pages` - Delete landing page (requires LANDING_PAGE delete permission)
+
+### User Management APIs
+
+- `GET /api/admin/users` - List sub-users (super user only)
+- `POST /api/admin/users` - Create sub-user (super user only)
+- `PUT /api/admin/users` - Update sub-user (super user only)
+- `DELETE /api/admin/users` - Delete sub-user (super user only)
+
+## Database Schema
+
+### Core Models
+
+- **User**: Main user model with sub-user relationships
+- **Product**: Product catalog with variants and images
+- **Order**: Order management with items
+- **LandingPage**: Custom landing pages
+- **ProductPage**: SEO-optimized product pages
+- **Cart**: Shopping cart functionality
+- **Wishlist**: User wishlists
+
+### Permission System
+
+- **Permission**: Granular permissions for each user and resource
+- **ResourceType**: Enum defining available resources (ORDER, PRODUCT, etc.)
+
+## Testing
+
+Run the test suite:
 
 ```bash
-bun dev
-# or
-bun run dev
+npm test
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run tests with coverage:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run test:coverage
+```
 
-## Available Scripts
+## Development
 
-- `bun dev` - Start development server with Turbopack
-- `bun build` - Build for production
-- `bun start` - Start production server
-- `bun lint` - Run ESLint
-- `bun test` - Run tests
-- `bun test:watch` - Run tests in watch mode
-- `bun test:coverage` - Run tests with coverage
-- `bun db:generate` - Generate Prisma client
-- `bun db:push` - Push schema to database
-- `bun db:migrate` - Run database migrations
-- `bun db:reset` - Reset database and run migrations
-- `bun db:seed` - Seed database with sample data
-- `bun db:studio` - Open Prisma Studio
+### Code Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Next.js app router
+│   ├── admin/             # Admin panel routes
+│   ├── api/               # API routes
+│   └── ...                # Public routes
+├── components/            # Reusable components
+│   ├── admin/            # Admin-specific components
+│   ├── ui/               # UI components
+│   └── functional/       # Functional components
+├── lib/                  # Utility libraries
+│   ├── permissions.ts    # Permission management
+│   └── prisma.ts         # Database client
+└── hooks/                # Custom React hooks
+```
 
-## Learn More
+### Key Components
 
-To learn more about Next.js, take a look at the following resources:
+- **PermissionGuard**: React component for permission-based UI rendering
+- **SubUserManagement**: Complete sub-user management interface
+- **PermissionChecker**: Utility class for permission validation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License.

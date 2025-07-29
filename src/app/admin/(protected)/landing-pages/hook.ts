@@ -58,9 +58,12 @@ export function useLandingPages() {
       if (!templatesRes.ok) throw new Error("Failed to fetch templates");
       if (!productsRes.ok) throw new Error("Failed to fetch products");
       const pages = await pagesRes.json();
+      // Fix: handle both { landingPages: [...] } and array
+      setLandingPages(
+        Array.isArray(pages) ? pages : (pages.landingPages ?? [])
+      );
       const templates = await templatesRes.json();
       const products = await productsRes.json();
-      setLandingPages(pages);
       setTemplates(templates);
       setProducts(products.map((p: any) => ({ id: p.id, name: p.name })));
       setError(null);

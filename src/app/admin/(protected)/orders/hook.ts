@@ -31,6 +31,31 @@ export interface Product {
   }[];
 }
 
+// Helper function to transform API order data to hook interface
+function transformOrderData(apiOrder: any): Order {
+  if (!apiOrder) {
+    throw new Error("Invalid order data received");
+  }
+
+  return {
+    id: apiOrder.id || "",
+    customerName: apiOrder.customerName || "",
+    customerPhone: apiOrder.customerPhone || "",
+    total: apiOrder.total || 0,
+    status: (apiOrder.status || "PENDING").toLowerCase() as Order["status"],
+    orderDate: apiOrder.orderDate
+      ? new Date(apiOrder.orderDate).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
+    shippingAddress: apiOrder.shippingAddress || "",
+    products: (apiOrder.items || []).map((item: any) => ({
+      name: item.productName || item.product?.name || "Unknown Product",
+      quantity: item.quantity || 0,
+      price: item.price || 0,
+      variant: item.variant?.value || undefined,
+    })),
+  };
+}
+
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,17 +92,46 @@ export function useOrders() {
 
   useEffect(() => {
     fetch("/api/admin/orders")
-      .then((res) => res.json())
-      .then((data) => setOrders(data))
-      .catch(console.error)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data.orders) {
+          const transformedOrders = data.orders.map(transformOrderData);
+          setOrders(transformedOrders);
+        } else {
+          setOrders([]);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching orders:", error);
+        setOrders([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     fetch("/api/admin/products")
-      .then((res) => res.json())
-      .then((data: Product[]) => setProductsList(data))
-      .catch(console.error);
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data.products) {
+          setProductsList(data.products);
+        } else {
+          setProductsList([]);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching products:", error);
+        setProductsList([]);
+      });
   }, []);
 
   const updateOrderStatus = async (
@@ -91,30 +145,101 @@ export function useOrders() {
   };
 
   const addOrder = async (order: Order) => {
+    try {
+      // Transform hook order data to API format
+      const apiOrderData = {
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        total: order.total,
+        status: order.status.toUpperCase(),
+        orderDate: new Date(order.orderDate),
+        shippingAddress: order.shippingAddress,
+        items: {
+          create: order.products.map((product) => ({
+            productId:
+              productsList.find((p) => p.name === product.name)?.id || "",
+            productName: product.name,
+            quantity: product.quantity,
+            price: product.price,
+            variantId: product.variant
+              ? productsList
+                  .find((p) => p.name === product.name)
+                  ?.variants.find((v) => v.value === product.variant)?.id
+              : null,
+          })),
+        },
+      };
+
     const res = await fetch("/api/admin/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(order),
+        body: JSON.stringify(apiOrderData),
     });
-    const newOrder = await res.json();
-    setOrders((prev) => [...prev, newOrder]);
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const newOrderData = await res.json();
+      if (newOrderData.order) {
+        const transformedOrder = transformOrderData(newOrderData.order);
+        setOrders((prev) => [...prev, transformedOrder]);
+      }
+    } catch (error) {
+      console.error("Error adding order:", error);
+    }
   };
 
   const editOrder = async (updated: Order) => {
+    try {
+      // Transform hook order data to API format
+      const apiOrderData = {
+        customerName: updated.customerName,
+        customerPhone: updated.customerPhone,
+        total: updated.total,
+        status: updated.status.toUpperCase(),
+        orderDate: new Date(updated.orderDate),
+        shippingAddress: updated.shippingAddress,
+      };
+
     const res = await fetch(`/api/admin/orders?id=${updated.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
+        body: JSON.stringify(apiOrderData),
     });
-    const newOrder = await res.json();
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const newOrderData = await res.json();
+      if (newOrderData.order) {
+        const transformedOrder = transformOrderData(newOrderData.order);
     setOrders((prev) =>
-      prev.map((order) => (order.id === updated.id ? newOrder : order))
+          prev.map((order) =>
+            order.id === updated.id ? transformedOrder : order
+          )
     );
+      }
+    } catch (error) {
+      console.error("Error editing order:", error);
+    }
   };
 
   const deleteOrder = async (orderId: string) => {
-    await fetch(`/api/admin/orders?id=${orderId}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/admin/orders?id=${orderId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
     setOrders((prev) => prev.filter((order) => order.id !== orderId));
+    } catch (error) {
+      console.error("Error deleting order:", error);
+    }
   };
 
   // Form handlers

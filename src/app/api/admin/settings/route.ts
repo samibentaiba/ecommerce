@@ -93,3 +93,7 @@ export async function DELETE() {
     );
   }
 }
+
+// --- Sub-user management endpoints (to be implemented) ---
+// Example: GET /api/admin/settings/subusers, POST /api/admin/settings/subusers, etc.
+// These will allow the super user to create, update, delete, and list sub-users and their permissions.

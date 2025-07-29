@@ -1,113 +1,110 @@
 import { NextRequest } from "next/server";
-import { PrismaClient, ProductStatus } from "@prisma/client";
-import { mockDeep, DeepMockProxy } from "jest-mock-extended";
+import { TextEncoder, TextDecoder } from "util";
+// @ts-ignore
+if (typeof global.TextEncoder === "undefined") {
+  // @ts-ignore
+  global.TextEncoder = TextEncoder;
+  // @ts-ignore
+  global.TextDecoder = TextDecoder;
+}
 
-// Mock Prisma client
-jest.mock("@/lib/prisma", () => ({
-  __esModule: true,
-  default: mockDeep<PrismaClient>(),
+// Mock NextAuth
+jest.mock("next-auth", () => ({
+  getServerSession: jest.fn(),
 }));
 
-import prisma from "@/lib/prisma";
-const mockPrisma = prisma as DeepMockProxy<PrismaClient>;
-
-import { GET, POST, PUT, DELETE } from "../route";
-
-// Mock data
-const mockProduct = {
-  id: "product-1",
-  name: "Premium Wireless Headphones",
-  description: "High-quality wireless headphones with noise cancellation",
-  price: 299.99,
-  originalPrice: 349.99,
-  category: "Electronics",
-  stock: 50,
-  status: "ACTIVE" as ProductStatus,
-  image: "/headphones.jpg",
-  rating: 4.5,
-  createdAt: new Date("2024-01-15T10:00:00Z"),
-  updatedAt: new Date("2024-01-15T10:00:00Z"),
-  images: [
-    {
-      id: "img-1",
-      url: "/headphones-1.jpg",
-      alt: "Headphones front view",
-      isPrimary: true,
+// Mock the prisma client
+jest.mock("@/lib/prisma", () => ({
+  __esModule: true,
+  default: {
+    product: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
-    {
-      id: "img-2",
-      url: "/headphones-2.jpg",
-      alt: "Headphones side view",
-      isPrimary: false,
+    user: {
+      findUnique: jest.fn(),
     },
-  ],
-  variants: [
-    {
-      id: "var-1",
-      name: "Black",
-      type: "COLOR",
-      value: "#000000",
-      description: "Classic black",
-      variantPrice: 299.99,
-      stockQuantity: 25,
-      images: [],
+    productImage: {
+      deleteMany: jest.fn(),
     },
-    {
-      id: "var-2",
-      name: "White",
-      type: "COLOR",
-      value: "#FFFFFF",
-      description: "Clean white",
-      variantPrice: 299.99,
-      stockQuantity: 25,
-      images: [],
-    },
-  ],
-};
-
-const mockProducts = [
-  mockProduct,
-  {
-    id: "product-2",
-    name: "Smart Fitness Watch",
-    description: "Advanced fitness tracking with heart rate monitoring",
-    price: 199.99,
-    originalPrice: null,
-    category: "Wearables",
-    stock: 30,
-    status: "INACTIVE" as ProductStatus,
-    image: "/watch.jpg",
-    rating: 4.2,
-    createdAt: new Date("2024-01-14T15:30:00Z"),
-    updatedAt: new Date("2024-01-14T15:30:00Z"),
-    images: [],
-    variants: [],
   },
-];
+}));
+
+const mockPrisma = require("@/lib/prisma").default;
+const { getServerSession } = require("next-auth");
+
+// After all mocks, import the route handlers using require
+const { GET, POST, PUT, DELETE } = require("../route");
 
 describe("Products API Route", () => {
+  let mockUser: any;
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUser = {
+      id: "admin-1",
+      name: "Super Admin",
+      email: "admin@store.com",
+      role: "ADMIN",
+      parentId: null,
+      permissions: [
+        {
+          id: "perm-1",
+          userId: "admin-1",
+          resource: "PRODUCT",
+          canView: true,
+          canCreate: true,
+          canEdit: true,
+          canDelete: true,
+        },
+      ],
+    };
+    getServerSession.mockResolvedValue({
+      user: {
+        id: "admin-1",
+        name: "Super Admin",
+        email: "admin@store.com",
+        role: "ADMIN",
+      },
+    });
+    mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+    // Mock deleteMany for PUT tests
+    mockPrisma.productImage = { deleteMany: jest.fn().mockResolvedValue({}) };
   });
 
   describe("GET /api/admin/products", () => {
     it("should return all products", async () => {
+      const mockProducts = [
+        {
+          id: "product-1",
+          name: "Test Product",
+          description: "A test product",
+          price: 99.99,
+          originalPrice: 129.99,
+          stock: 10,
+          status: "ACTIVE",
+          category: "Electronics",
+          images: [],
+          variants: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
       mockPrisma.product.findMany.mockResolvedValue(mockProducts);
 
       const response = await GET();
       const data = await response.json();
 
+      expect(response.status).toBe(200);
+      expect(data.products).toEqual(mockProducts);
       expect(mockPrisma.product.findMany).toHaveBeenCalledWith({
         include: {
           images: true,
-          variants: true,
-        },
-        orderBy: {
-          createdAt: "desc",
+          variants: { include: { images: true } },
         },
       });
-
-      expect(data).toEqual(mockProducts);
     });
 
     it("should handle database errors", async () => {
@@ -128,163 +125,200 @@ describe("Products API Route", () => {
       const response = await GET();
       const data = await response.json();
 
-      expect(data).toEqual([]);
+      expect(response.status).toBe(200);
+      expect(data.products).toEqual([]);
+    });
+
+    it("should return 401 when user is not authenticated", async () => {
+      getServerSession.mockResolvedValue(null);
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe("Unauthorized");
+    });
+
+    it("should return 403 when user lacks permissions", async () => {
+      jest.clearAllMocks();
+      // content@store.com has NO PRODUCT permission
+      const userWithNoProductPermission = {
+        id: "user-3",
+        name: "Content Manager",
+        email: "content@store.com",
+        role: "ADMIN",
+        parentId: "admin-1",
+        permissions: [
+          // No PRODUCT permission
+          {
+            id: "perm-x",
+            userId: "user-3",
+            resource: "LANDING_PAGE",
+            canView: true,
+            canCreate: true,
+            canEdit: true,
+            canDelete: true,
+          },
+        ],
+      };
+      getServerSession.mockResolvedValue({
+        user: {
+          id: "user-3",
+          name: "Content Manager",
+          email: "content@store.com",
+          role: "ADMIN",
+          parentId: "admin-1",
+        },
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(userWithNoProductPermission);
+      const response = await GET();
+      const data = await response.json();
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("Insufficient permissions to view products");
     });
   });
 
   describe("POST /api/admin/products", () => {
-    const createProductData = {
-      name: "New Product",
-      description: "A new product description",
-      price: 99.99,
-      originalPrice: 129.99,
-      category: "Electronics",
-      stock: 25,
-      status: "ACTIVE",
-      images: [
-        {
-          id: "new-img-1",
-          url: "/new-product-1.jpg",
-          alt: "New product image",
-          isPrimary: true,
-        },
-      ],
-      variants: [
-        {
-          id: "new-var-1",
-          name: "Red",
-          type: "COLOR",
-          value: "#FF0000",
-          description: "Red variant",
-          variantPrice: 99.99,
-          stockQuantity: 15,
-          images: [],
-        },
-      ],
-    };
-
     it("should create a new product", async () => {
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
-        ...createProductData,
-        id: "product-3",
-        status: "ACTIVE" as ProductStatus,
-        createdAt: new Date("2024-01-16T12:00:00Z"),
-        updatedAt: new Date("2024-01-16T12:00:00Z"),
-      });
-
+      const newProduct = {
+        name: "New Product",
+        description: "A new product description",
+        price: 99.99,
+        originalPrice: 129.99,
+        stock: 25,
+        status: "ACTIVE",
+        category: "Electronics",
+        images: {
+          create: [
+            {
+              id: "new-img-1",
+              url: "/api/images/new-img-1",
+              alt: "New product image",
+              isPrimary: true,
+              data: { type: "Buffer", data: [116, 101, 115, 116] },
+            },
+          ],
+        },
+        variants: {
+          create: [
+            {
+              id: "new-var-1",
+              name: "Red",
+              value: "#FF0000",
+              type: "COLOR",
+              description: "Red variant",
+              variantPrice: 99.99,
+              stockQuantity: 15,
+              images: { create: [] },
+            },
+          ],
+        },
+      };
+      const createdProduct = { id: "new-product-1", ...newProduct };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
         {
           method: "POST",
-          body: JSON.stringify(createProductData),
+          body: JSON.stringify(newProduct),
         }
       );
-
       const response = await POST(request);
       const data = await response.json();
-
-      expect(mockPrisma.product.create).toHaveBeenCalledWith({
-        data: {
-          name: "New Product",
-          description: "A new product description",
-          price: 99.99,
-          originalPrice: 129.99,
-          category: "Electronics",
-          stock: 25,
-          status: "ACTIVE",
-          images: {
-            create: [
-              {
-                id: "new-img-1",
-                url: "/new-product-1.jpg",
-                alt: "New product image",
-                isPrimary: true,
-              },
-            ],
-          },
-          variants: {
-            create: [
-              {
-                id: "new-var-1",
-                name: "Red",
-                type: "COLOR",
-                value: "#FF0000",
-                description: "Red variant",
-                variantPrice: 99.99,
-                stockQuantity: 15,
-                images: [],
-              },
-            ],
-          },
-        },
-        include: { images: true, variants: true },
-      });
       expect(response.status).toBe(200);
-      expect(data.name).toBe("New Product");
+      expect(data.product).toEqual(createdProduct);
+      expect(mockPrisma.product.create).toHaveBeenCalledWith({
+        data: newProduct,
+        include: {
+          images: true,
+          variants: { include: { images: true } },
+        },
+      });
     });
 
     it("should handle missing required fields", async () => {
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
-        name: undefined as unknown as string,
-        description: undefined as unknown as string,
-        price: undefined as unknown as number,
-        originalPrice: undefined as unknown as number | null,
-        category: undefined as unknown as string,
-        stock: undefined as unknown as number,
-        status: undefined as unknown as ProductStatus,
-      });
+      const incompleteProduct = {
+        name: "Incomplete Product",
+        // Missing other required fields
+      };
+
+      const createdProduct = { id: "incomplete-1", ...incompleteProduct };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
         {
           method: "POST",
-          body: JSON.stringify({}),
+          body: JSON.stringify(incompleteProduct),
         }
       );
       const response = await POST(request);
       const data = await response.json();
-      // The API doesn't validate required fields, so it will try to create with undefined values
+
       expect(response.status).toBe(200);
-      expect(data).toBeDefined();
+      expect(data.product).toEqual(createdProduct);
     });
 
     it("should handle invalid price", async () => {
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
+      const productWithInvalidPrice = {
+        name: "Invalid Price Product",
         price: -100,
-      });
+        stock: 10,
+        status: "ACTIVE",
+        category: "Electronics",
+        images: { create: [] },
+        variants: { create: [] },
+      };
+
+      const createdProduct = {
+        id: "invalid-price-1",
+        ...productWithInvalidPrice,
+      };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
         {
           method: "POST",
-          body: JSON.stringify({ ...createProductData, price: -100 }),
+          body: JSON.stringify(productWithInvalidPrice),
         }
       );
       const response = await POST(request);
       const data = await response.json();
-      // The API doesn't validate price values, so it will try to create with negative price
+
       expect(response.status).toBe(200);
-      expect(data.price).toBe(-100);
+      expect(data.product.price).toBe(-100);
     });
 
     it("should handle invalid stock", async () => {
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
+      const productWithInvalidStock = {
+        name: "Invalid Stock Product",
+        price: 99.99,
         stock: -5,
-      });
+        status: "ACTIVE",
+        category: "Electronics",
+        images: { create: [] },
+        variants: { create: [] },
+      };
+
+      const createdProduct = {
+        id: "invalid-stock-1",
+        ...productWithInvalidStock,
+      };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
         {
           method: "POST",
-          body: JSON.stringify({ ...createProductData, stock: -5 }),
+          body: JSON.stringify(productWithInvalidStock),
         }
       );
       const response = await POST(request);
       const data = await response.json();
-      // The API doesn't validate stock values, so it will try to create with negative stock
+
       expect(response.status).toBe(200);
-      expect(data.stock).toBe(-5);
+      expect(data.product.stock).toBe(-5);
     });
 
     it("should handle products without images", async () => {
@@ -292,19 +326,16 @@ describe("Products API Route", () => {
         name: "Product Without Images",
         description: "A product with no images",
         price: 49.99,
-        originalPrice: null,
-        category: "Electronics",
         stock: 10,
         status: "ACTIVE",
-        images: [],
-        variants: [],
+        category: "Electronics",
+        images: { create: [] },
+        variants: { create: [] },
       };
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
-        ...productWithoutImages,
-        id: "product-4",
-        status: "ACTIVE" as ProductStatus,
-      });
+
+      const createdProduct = { id: "no-images-1", ...productWithoutImages };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
         {
@@ -314,16 +345,20 @@ describe("Products API Route", () => {
       );
       const response = await POST(request);
       const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.product).toEqual(createdProduct);
       expect(mockPrisma.product.create).toHaveBeenCalledWith({
         data: {
           ...productWithoutImages,
           images: { create: [] },
           variants: { create: [] },
         },
-        include: { images: true, variants: true },
+        include: {
+          images: true,
+          variants: { include: { images: true } },
+        },
       });
-      expect(response.status).toBe(200);
-      expect(data.name).toBe("Product Without Images");
     });
 
     it("should handle database errors during creation", async () => {
@@ -333,89 +368,109 @@ describe("Products API Route", () => {
         "http://localhost:3000/api/admin/products",
         {
           method: "POST",
-          body: JSON.stringify(createProductData),
+          body: JSON.stringify({ name: "Test Product" }),
         }
       );
-
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to create product");
     });
+
+    it("should return 401 when user is not authenticated", async () => {
+      getServerSession.mockResolvedValue(null);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products",
+        {
+          method: "POST",
+          body: JSON.stringify({ name: "Test Product" }),
+        }
+      );
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe("Unauthorized");
+    });
+
+    it("should return 403 when user lacks create permissions", async () => {
+      jest.clearAllMocks();
+      // sales@store.com has PRODUCT canCreate: false
+      const userWithDeniedCreate = {
+        id: "user-2",
+        name: "Sales Assistant",
+        email: "sales@store.com",
+        role: "ADMIN",
+        parentId: "admin-1",
+        permissions: [
+          {
+            id: "perm-x",
+            userId: "user-2",
+            resource: "PRODUCT",
+            canView: true,
+            canCreate: false,
+            canEdit: false,
+            canDelete: false,
+          },
+        ],
+      };
+      getServerSession.mockResolvedValue({
+        user: {
+          id: "user-2",
+          name: "Sales Assistant",
+          email: "sales@store.com",
+          role: "ADMIN",
+          parentId: "admin-1",
+        },
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(userWithDeniedCreate);
+      mockPrisma.product.create.mockImplementation(() => {
+        throw new Error("Should not be called");
+      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products",
+        {
+          method: "POST",
+          body: JSON.stringify({ name: "Test Product" }),
+        }
+      );
+      const response = await POST(request);
+      const data = await response.json();
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("Insufficient permissions to create products");
+    });
   });
 
   describe("PUT /api/admin/products", () => {
-    const updateProductData = {
-      name: "Updated Product Name",
-      description: "Updated description",
-      price: 149.99,
-      originalPrice: 179.99,
-      category: "Updated Category",
-      stock: 75,
-      status: "INACTIVE",
-      images: [
-        {
-          id: "updated-img-1",
-          url: "/updated-product-1.jpg",
-          alt: "Updated image",
-          isPrimary: true,
-        },
-      ],
-      variants: [
-        {
-          id: "updated-var-1",
-          name: "Blue",
-          type: "COLOR",
-          value: "#0000FF",
-          description: "Blue variant",
-          variantPrice: 149.99,
-          stockQuantity: 40,
-          images: [],
-        },
-      ],
-    };
-
     it("should update an existing product", async () => {
-      mockPrisma.product.update.mockResolvedValue({
-        ...mockProduct,
+      const updateData = {
+        id: "product-1",
         name: "Updated Product Name",
         description: "Updated description",
         price: 149.99,
         originalPrice: 179.99,
-        category: "Updated Category",
         stock: 75,
         status: "INACTIVE",
-        updatedAt: expect.any(Date),
-      });
-      mockPrisma.product.findUnique.mockResolvedValue({
-        ...mockProduct,
-        name: "Updated Product Name",
-        description: "Updated description",
-        price: 149.99,
-        originalPrice: 179.99,
         category: "Updated Category",
-        stock: 75,
-        status: "INACTIVE",
-        updatedAt: expect.any(Date),
-      });
+      };
+
+      const updatedProduct = { ...updateData };
+      mockPrisma.product.update.mockResolvedValue(updatedProduct);
+
       const request = new NextRequest(
-        "http://localhost:3000/api/admin/products?id=product-1",
+        "http://localhost:3000/api/admin/products",
         {
           method: "PUT",
-          body: JSON.stringify({
-            name: "Updated Product Name",
-            description: "Updated description",
-            price: 149.99,
-            originalPrice: 179.99,
-            category: "Updated Category",
-            stock: 75,
-            status: "INACTIVE",
-          }),
+          body: JSON.stringify(updateData),
         }
       );
       const response = await PUT(request);
       const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.product).toEqual(updatedProduct);
       expect(mockPrisma.product.update).toHaveBeenCalledWith({
         where: { id: "product-1" },
         data: {
@@ -423,15 +478,17 @@ describe("Products API Route", () => {
           description: "Updated description",
           price: 149.99,
           originalPrice: 179.99,
-          category: "Updated Category",
           stock: 75,
           status: "INACTIVE",
-          updatedAt: expect.any(Date),
+          category: "Updated Category",
+          images: { create: [] },
+          variants: { create: [] },
         },
-        include: { images: true, variants: true },
+        include: {
+          images: true,
+          variants: { include: { images: true } },
+        },
       });
-      expect(response.status).toBe(200);
-      expect(data.name).toBe("Updated Product Name");
     });
 
     it("should return 400 error when product ID is missing", async () => {
@@ -439,10 +496,9 @@ describe("Products API Route", () => {
         "http://localhost:3000/api/admin/products",
         {
           method: "PUT",
-          body: JSON.stringify(updateProductData),
+          body: JSON.stringify({ name: "Updated Product" }),
         }
       );
-
       const response = await PUT(request);
       const data = await response.json();
 
@@ -452,89 +508,138 @@ describe("Products API Route", () => {
 
     it("should handle product not found", async () => {
       mockPrisma.product.update.mockRejectedValue(
-        new Error("Record not found")
+        new Error("Product not found")
       );
+
       const request = new NextRequest(
-        "http://localhost:3000/api/admin/products?id=product-999",
+        "http://localhost:3000/api/admin/products",
         {
           method: "PUT",
-          body: JSON.stringify({ name: "Doesn't matter" }),
+          body: JSON.stringify({ id: "non-existent", name: "Updated Product" }),
         }
       );
       const response = await PUT(request);
       const data = await response.json();
-      // The API returns 500 for not found, not 404
+
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to update product");
     });
 
     it("should handle partial updates", async () => {
-      mockPrisma.product.update.mockResolvedValue({
-        ...mockProduct,
+      const partialUpdate = {
+        id: "product-1",
         name: "Partially Updated Name",
         price: 199.99,
-        originalPrice: null,
-        stock: NaN,
-        category: undefined as unknown as string,
-        description: undefined as unknown as string,
-        status: undefined as unknown as ProductStatus,
-        updatedAt: expect.any(Date),
-      });
-      mockPrisma.product.findUnique.mockResolvedValue({
-        ...mockProduct,
-        name: "Partially Updated Name",
-        price: 199.99,
-        originalPrice: null,
-        stock: NaN,
-        category: undefined as unknown as string,
-        description: undefined as unknown as string,
-        status: undefined as unknown as ProductStatus,
-        updatedAt: expect.any(Date),
-      });
+      };
+
+      const updatedProduct = { ...partialUpdate };
+      mockPrisma.product.update.mockResolvedValue(updatedProduct);
+
       const request = new NextRequest(
-        "http://localhost:3000/api/admin/products?id=product-1",
+        "http://localhost:3000/api/admin/products",
         {
           method: "PUT",
-          body: JSON.stringify({
-            name: "Partially Updated Name",
-            price: 199.99,
-          }),
+          body: JSON.stringify(partialUpdate),
         }
       );
       const response = await PUT(request);
       const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.product).toEqual(updatedProduct);
       expect(mockPrisma.product.update).toHaveBeenCalledWith({
         where: { id: "product-1" },
         data: {
           name: "Partially Updated Name",
           price: 199.99,
-          originalPrice: null,
-          stock: NaN,
-          category: undefined as unknown as string,
-          description: undefined as unknown as string,
-          status: undefined as unknown as ProductStatus,
-          updatedAt: expect.any(Date),
+          images: { create: [] },
+          variants: { create: [] },
         },
-        include: { images: true, variants: true },
+        include: {
+          images: true,
+          variants: { include: { images: true } },
+        },
       });
-      expect(response.status).toBe(200);
-      expect(data.name).toBe("Partially Updated Name");
+    });
+
+    it("should return 401 when user is not authenticated", async () => {
+      getServerSession.mockResolvedValue(null);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products",
+        {
+          method: "PUT",
+          body: JSON.stringify({ id: "product-1", name: "Updated Product" }),
+        }
+      );
+      const response = await PUT(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe("Unauthorized");
+    });
+
+    it("should return 403 when user lacks edit permissions", async () => {
+      jest.clearAllMocks();
+      // sales@store.com has PRODUCT canEdit: false
+      const userWithDeniedEdit = {
+        id: "user-2",
+        name: "Sales Assistant",
+        email: "sales@store.com",
+        role: "ADMIN",
+        parentId: "admin-1",
+        permissions: [
+          {
+            id: "perm-x",
+            userId: "user-2",
+            resource: "PRODUCT",
+            canView: true,
+            canCreate: false,
+            canEdit: false,
+            canDelete: false,
+          },
+        ],
+      };
+      getServerSession.mockResolvedValue({
+        user: {
+          id: "user-2",
+          name: "Sales Assistant",
+          email: "sales@store.com",
+          role: "ADMIN",
+          parentId: "admin-1",
+        },
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(userWithDeniedEdit);
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products",
+        {
+          method: "PUT",
+          body: JSON.stringify({ id: "product-1", name: "Updated Product" }),
+        }
+      );
+      const response = await PUT(request);
+      const data = await response.json();
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("Insufficient permissions to edit products");
     });
   });
 
   describe("DELETE /api/admin/products", () => {
     it("should delete a product", async () => {
-      mockPrisma.product.findUnique.mockResolvedValue(mockProduct);
-      mockPrisma.product.delete.mockResolvedValue(mockProduct);
+      mockPrisma.product.delete.mockResolvedValue({ id: "product-1" });
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products?id=product-1",
         { method: "DELETE" }
       );
       const response = await DELETE(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe("Product deleted successfully");
       expect(mockPrisma.product.delete).toHaveBeenCalledWith({
         where: { id: "product-1" },
       });
-      expect(response.status).toBe(200);
     });
 
     it("should return 400 error when product ID is missing", async () => {
@@ -544,7 +649,6 @@ describe("Products API Route", () => {
           method: "DELETE",
         }
       );
-
       const response = await DELETE(request);
       const data = await response.json();
 
@@ -553,35 +657,91 @@ describe("Products API Route", () => {
     });
 
     it("should handle product not found during deletion", async () => {
-      // Mock findUnique to return null (product doesn't exist)
-      mockPrisma.product.findUnique.mockResolvedValue(null);
-
-      const request = new NextRequest(
-        "http://localhost:3000/api/admin/products?id=nonexistent",
-        {
-          method: "DELETE",
-        }
+      mockPrisma.product.delete.mockRejectedValue(
+        new Error("Product not found")
       );
 
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products?id=non-existent",
+        { method: "DELETE" }
+      );
       const response = await DELETE(request);
       const data = await response.json();
 
-      expect(response.status).toBe(404);
-      expect(data.error).toBe("Product not found");
+      expect(response.status).toBe(500);
+      expect(data.error).toBe("Failed to delete product");
     });
 
     it("should handle database errors during deletion", async () => {
-      mockPrisma.product.findUnique.mockResolvedValue(mockProduct);
       mockPrisma.product.delete.mockRejectedValue(new Error("Database error"));
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products?id=product-1",
         { method: "DELETE" }
       );
       const response = await DELETE(request);
       const data = await response.json();
-      // The API returns 404 for not found, but 500 for other errors
+
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to delete product");
+    });
+
+    it("should return 401 when user is not authenticated", async () => {
+      getServerSession.mockResolvedValue(null);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products?id=product-1",
+        { method: "DELETE" }
+      );
+      const response = await DELETE(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe("Unauthorized");
+    });
+
+    it("should return 403 when user lacks delete permissions", async () => {
+      jest.clearAllMocks();
+      // sales@store.com has PRODUCT canDelete: false
+      const userWithDeniedDelete = {
+        id: "user-2",
+        name: "Sales Assistant",
+        email: "sales@store.com",
+        role: "ADMIN",
+        parentId: "admin-1",
+        permissions: [
+          {
+            id: "perm-x",
+            userId: "user-2",
+            resource: "PRODUCT",
+            canView: true,
+            canCreate: false,
+            canEdit: false,
+            canDelete: false,
+          },
+        ],
+      };
+      getServerSession.mockResolvedValue({
+        user: {
+          id: "user-2",
+          name: "Sales Assistant",
+          email: "sales@store.com",
+          role: "ADMIN",
+          parentId: "admin-1",
+        },
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(userWithDeniedDelete);
+      mockPrisma.product.delete.mockImplementation(() => {
+        throw new Error("Should not be called");
+      });
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/products?id=product-1",
+        { method: "DELETE" }
+      );
+      const response = await DELETE(request);
+      const data = await response.json();
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("Insufficient permissions to delete products");
     });
   });
 
@@ -594,8 +754,9 @@ describe("Products API Route", () => {
           body: "invalid json",
         }
       );
-
       const response = await POST(request);
+      const data = await response.json();
+
       expect(response.status).toBe(500);
     });
 
@@ -605,18 +766,16 @@ describe("Products API Route", () => {
         description: "A product with no original price",
         price: 99.99,
         originalPrice: null,
-        category: "Electronics",
         stock: 20,
         status: "ACTIVE",
-        images: [],
-        variants: [],
+        category: "Electronics",
+        images: { create: [] },
+        variants: { create: [] },
       };
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
-        ...productWithNullPrice,
-        id: "product-5",
-        status: "ACTIVE" as ProductStatus,
-      });
+
+      const createdProduct = { id: "null-price-1", ...productWithNullPrice };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
+
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
         {
@@ -626,16 +785,20 @@ describe("Products API Route", () => {
       );
       const response = await POST(request);
       const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.product).toEqual(createdProduct);
       expect(mockPrisma.product.create).toHaveBeenCalledWith({
         data: {
           ...productWithNullPrice,
           images: { create: [] },
           variants: { create: [] },
         },
-        include: { images: true, variants: true },
+        include: {
+          images: true,
+          variants: { include: { images: true } },
+        },
       });
-      expect(response.status).toBe(200);
-      expect(data.name).toBe("Product Without Original Price");
     });
 
     it("should handle products with complex variant data", async () => {
@@ -643,38 +806,35 @@ describe("Products API Route", () => {
         name: "Product With Complex Variants",
         description: "A product with complex variant data",
         price: 199.99,
-        category: "Electronics",
         stock: 15,
         status: "ACTIVE",
-        images: [],
-        variants: [
-          {
-            id: "complex-var-1",
-            name: "Large Red",
-            type: "SIZE",
-            value: "L",
-            description: "Large size in red color",
-            variantPrice: 219.99,
-            stockQuantity: 8,
-            images: [
-              {
-                id: "var-img-1",
-                url: "/large-red.jpg",
-                alt: "Large Red Variant",
-                isPrimary: true,
-              },
-            ],
-          },
-        ],
+        category: "Electronics",
+        images: { create: [] },
+        variants: {
+          create: [
+            {
+              id: "complex-var-1",
+              name: "Large Red",
+              value: "L",
+              type: "SIZE",
+              description: "Large size in red color",
+              variantPrice: 219.99,
+              stockQuantity: 8,
+              images: [
+                {
+                  id: "var-img-1",
+                  url: "/large-red.jpg",
+                  alt: "Large Red Variant",
+                  isPrimary: true,
+                },
+              ],
+            },
+          ],
+        },
       };
 
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
-        ...productWithComplexVariants,
-        id: "product-6",
-        status: "ACTIVE" as ProductStatus,
-        rating: 0,
-      });
+      const createdProduct = { id: "complex-1", ...productWithComplexVariants };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
 
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
@@ -683,33 +843,27 @@ describe("Products API Route", () => {
           body: JSON.stringify(productWithComplexVariants),
         }
       );
-
       const response = await POST(request);
       const data = await response.json();
 
-      expect(data).toMatchObject(productWithComplexVariants);
+      expect(response.status).toBe(200);
+      expect(data.product).toMatchObject(productWithComplexVariants);
     });
 
     it("should handle very long product names", async () => {
-      const longName = "A".repeat(500); // Very long name
+      const longName = "A".repeat(500);
       const productWithLongName = {
         name: longName,
-        description: "Product with very long name",
         price: 99.99,
-        category: "Electronics",
         stock: 10,
         status: "ACTIVE",
-        images: [],
-        variants: [],
+        category: "Electronics",
+        images: { create: [] },
+        variants: { create: [] },
       };
 
-      mockPrisma.product.create.mockResolvedValue({
-        ...mockProduct,
-        ...productWithLongName,
-        id: "product-7",
-        status: "ACTIVE" as ProductStatus,
-        rating: 0,
-      });
+      const createdProduct = { id: "long-name-1", ...productWithLongName };
+      mockPrisma.product.create.mockResolvedValue(createdProduct);
 
       const request = new NextRequest(
         "http://localhost:3000/api/admin/products",
@@ -718,11 +872,11 @@ describe("Products API Route", () => {
           body: JSON.stringify(productWithLongName),
         }
       );
-
       const response = await POST(request);
       const data = await response.json();
 
-      expect(data.name).toBe(longName);
+      expect(response.status).toBe(200);
+      expect(data.product.name).toBe(longName);
     });
   });
 });
